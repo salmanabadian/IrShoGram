@@ -1,121 +1,344 @@
+
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const IrShoGram());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class IrShoGram extends StatefulWidget {
+  const IrShoGram({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<IrShoGram> createState() => _IrShoGramState();
+}
+
+class _IrShoGramState extends State<IrShoGram> {
+  int themeIndex = 0;
+
+  final List<Color> colors = [
+    Colors.white,
+    const Color(0xFF121212),
+    const Color(0xFF241044),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final dark = themeIndex != 0;
+
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'IrShoGram',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        brightness: dark ? Brightness.dark : Brightness.light,
+        scaffoldBackgroundColor: colors[themeIndex],
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: themeIndex == 2
+              ? const Color(0xFFB000FF)
+              : Colors.deepPurple,
+          brightness: dark ? Brightness.dark : Brightness.light,
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: HomePage(
+        themeIndex: themeIndex,
+        onThemeChanged: (value) {
+          setState(() => themeIndex = value);
+        },
+      ),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class HomePage extends StatefulWidget {
+  final int themeIndex;
+  final ValueChanged<int> onThemeChanged;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  const HomePage({
+    super.key,
+    required this.themeIndex,
+    required this.onThemeChanged,
+  });
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomePageState extends State<HomePage> {
+  int selectedIndex = 0;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  final List<String> names = [
+    'استوری شما',
+    'علی',
+    'محمد',
+    'رضا',
+    'سارا',
+    'امیر',
+    'مریم',
+  ];
+
+  void showCreateDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ایجاد محتوای جدید'),
+        content: const Text('چه چیزی می‌خواهید منتشر کنید؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('پست'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('استوری'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget storyItem(String name, int index) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [
+                  Colors.purple,
+                  Colors.pink,
+                  Colors.orange,
+                ],
+              ),
+            ),
+            child: CircleAvatar(
+              radius: 29,
+              backgroundColor: Colors.grey.shade700,
+              child: index == 0
+                  ? const Icon(Icons.add, size: 28)
+                  : Text(
+                      name[0],
+                      style: const TextStyle(
+                        fontSize: 22,
+                        color: Colors.white,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(name, style: const TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget postCard() {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 18),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            leading: const CircleAvatar(
+              child: Icon(Icons.person),
+            ),
+            title: const Text(
+              'irshogram_user',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text('پیشنهاد برای شما'),
+            trailing: const Icon(Icons.more_vert),
+          ),
+          Container(
+            height: 260,
+            width: double.infinity,
+            color: Colors.grey.shade800,
+            child: const Icon(
+              Icons.image_outlined,
+              size: 75,
+              color: Colors.white70,
+            ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.favorite_border),
+              ),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.mode_comment_outlined),
+              ),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.send_outlined),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.bookmark_border),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14),
+            child: Text('خوش آمدید به ایرشوگرام'),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget profilePage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircleAvatar(
+            radius: 42,
+            child: Icon(Icons.person, size: 45),
+          ),
+          const SizedBox(height: 15),
+          const Text(
+            'پروفایل من',
+            style: TextStyle(fontSize: 22),
+          ),
+          const SizedBox(height: 25),
+          const Text('انتخاب رنگ برنامه'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            children: [
+              themeButton('سفید', 0, Colors.white),
+              themeButton('مشکی', 1, Colors.black),
+              themeButton('بنفش نئونی', 2, Colors.purple),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget themeButton(String title, int index, Color color) {
+    return OutlinedButton(
+      onPressed: () => widget.onThemeChanged(index),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(radius: 7, backgroundColor: color),
+          const SizedBox(width: 5),
+          Text(title),
+          if (widget.themeIndex == index)
+            const Icon(Icons.check, size: 16),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+    final pages = [
+      ListView(
+        padding: const EdgeInsets.only(top: 10),
+        children: [
+          SizedBox(
+            height: 100,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (int i = 0; i < names.length; i++)
+                  storyItem(names[i], i),
+              ],
             ),
+          ),
+          const Divider(),
+          postCard(),
+          postCard(),
+        ],
+      ),
+      const Center(child: Text('جستجو')),
+      const Center(child: Text('پیام‌های دایرکت')),
+      const Center(child: Text('ویدیوهای ریلز')),
+      profilePage(),
+    ];
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            if (selectedIndex == 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => const AlertDialog(
+                            title: Text('اعلان‌ها'),
+                            content: Text('فعلاً اعلانی ندارید.'),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.favorite_border),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'IrShoGram',
+                      style: TextStyle(
+                        fontSize: 27,
+                        fontWeight: FontWeight.bold,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: showCreateDialog,
+                      icon: const Icon(Icons.add, size: 30),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(child: pages[selectedIndex]),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: selectedIndex,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          setState(() => selectedIndex = index);
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'خانه',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'جستجو',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.send_outlined),
+            label: 'دایرکت',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.video_library_outlined),
+            label: 'ریلز',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: 'پروفایل',
+          ),
+        ],
       ),
     );
   }
