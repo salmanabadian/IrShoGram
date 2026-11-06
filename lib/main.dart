@@ -381,28 +381,30 @@ class _MainShellState extends State<MainShell> {
   Widget _searchPage() {
     final query = _searchController.text.trim().toLowerCase();
     final results = _people.where((name) => name.toLowerCase().contains(query)).toList();
+    final explorePosts = _posts.where((p) => !p.isVideo).toList();
     return Column(children: [
-      Padding(padding: const EdgeInsets.all(12), child: TextField(
-        controller: _searchController,
-        onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'جستجوی نام کاربری', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none), suffixIcon: IconButton(icon: const Icon(Icons.close), onPressed: () { _searchController.clear(); setState(() {}); })),
-      )),
-      Expanded(child: query.isEmpty
-        ? const Center(child: Text('برای جستجو، نام کاربری را وارد کنید.'))
-        : results.isEmpty ? const Center(child: Text('نتیجه‌ای پیدا نشد.'))
-        : ListView(children: results.map((name) => ListTile(
-            leading: _avatar(name),
-            title: Text(name),
-            subtitle: const Text('حساب نمونه محلی'),
-            trailing: FilledButton.tonal(
-              onPressed: () async {
-                setState(() => _following.contains(name) ? _following.remove(name) : _following.add(name));
-                await _store.saveFollowing(_following);
-              },
-              child: Text(_following.contains(name) ? 'دنبال می‌کنید' : 'دنبال کردن'),
-            ),
+      Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 8), child: SizedBox(height: 40, child: TextField(
+        controller: _searchController, onChanged: (_) => setState(() {}),
+        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 21), hintText: 'جستجو', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+          suffixIcon: query.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () { _searchController.clear(); setState(() {}); })),
+      ))),
+      Expanded(child: query.isNotEmpty
+        ? results.isEmpty ? const Center(child: Text('نتیجه‌ای پیدا نشد.')) : ListView(children: results.map((name) => ListTile(
+            leading: _avatar(name), title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)), subtitle: const Text('حساب نمونه محلی'),
+            trailing: SizedBox(height: 32, child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _following.contains(name) ? const Color(0xFFEFEFEF) : const Color(0xFF0095F6), foregroundColor: _following.contains(name) ? _igBlack : Colors.white, elevation: 0),
+              onPressed: () async { setState(() => _following.contains(name) ? _following.remove(name) : _following.add(name)); await _store.saveFollowing(_following); },
+              child: Text(_following.contains(name) ? 'دنبال می‌کنید' : 'دنبال کردن'))),
             onTap: () => _openChat(name),
-          )).toList())),
+          )).toList())
+        : explorePosts.isEmpty ? const Center(child: Text('برای دیدن محتوا، ابتدا پست یا ریلز منتشر کنید.', style: TextStyle(color: _igGrey)))
+        : GridView.builder(padding: const EdgeInsets.all(2), itemCount: explorePosts.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+            itemBuilder: (_, i) => GestureDetector(onTap: () => setState(() => _tab = 0), child: Stack(fit: StackFit.expand, children: [
+              Image.file(File(explorePosts[i].mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFEFEFEF))),
+              if (explorePosts[i].isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 20)),
+            ]))),
+      ),
     ]);
   }
 
@@ -416,16 +418,27 @@ class _MainShellState extends State<MainShell> {
 
   Widget _messagesPage() {
     final peers = _messages.map((m) => m.peer).toSet().toList();
-    return ListView(children: [
-      const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 8), child: Text('پیام‌ها', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 23))),
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'جستجو در گفتگوها', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none)))),
-      if (peers.isEmpty) const Padding(padding: EdgeInsets.all(45), child: Column(children: [Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey), SizedBox(height: 12), Text('هنوز گفتگویی ندارید.'), Text('از بخش جستجو یک گفتگو را شروع کنید.', style: TextStyle(color: Colors.grey))])),
-      for (final peer in peers.reversed) ListTile(
-        leading: _avatar(peer),
-        title: Text(peer),
-        subtitle: Text(_messages.lastWhere((m) => m.peer == peer).text, maxLines: 1, overflow: TextOverflow.ellipsis),
-        onTap: () => _openChat(peer),
-      ),
+    return Column(children: [
+      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 8), child: Row(children: [
+        Expanded(child: Text(_username, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _igBlack))),
+        IconButton(onPressed: () => _notice('گفتگوی جدید را از بخش جستجو شروع کنید.'), icon: const Icon(Icons.edit_square, color: _igBlack)),
+      ])),
+      Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 10), child: SizedBox(height: 38, child: TextField(
+        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 20), hintText: 'جستجو', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
+      ))),
+      Expanded(child: peers.isEmpty
+        ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.send_outlined, size: 58, color: _igBlack), SizedBox(height: 12),
+            Text('پیام‌هایت را ارسال کن', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            SizedBox(height: 6), Text('به دوستانت پیام خصوصی بده.', style: TextStyle(color: _igGrey)),
+          ]))
+        : ListView(children: [
+            const Padding(padding: EdgeInsets.fromLTRB(16, 4, 16, 8), child: Text('پیام‌ها', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+            for (final peer in peers.reversed) ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+              leading: _avatar(peer, radius: 25), title: Text(peer, style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(_messages.lastWhere((m) => m.peer == peer).text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _igGrey)),
+              trailing: const Icon(Icons.camera_alt_outlined, color: _igBlack), onTap: () => _openChat(peer)),
+          ])),
     ]);
   }
 
@@ -728,15 +741,38 @@ class SavedPostsPage extends StatelessWidget {
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
-
+  Widget _section(String title, List<Widget> items) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Padding(padding: const EdgeInsets.fromLTRB(16, 22, 16, 7), child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _igBlack))),
+    ...items,
+  ]);
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('تنظیمات و حریم خصوصی')),
-    body: ListView(children: const [
-      ListTile(leading: Icon(Icons.lock_outline), title: Text('حریم خصوصی حساب'), subtitle: Text('تنظیمات حریم خصوصی ابری پس از اتصال حساب فعال می‌شود.')),
-      ListTile(leading: Icon(Icons.notifications_outlined), title: Text('اعلان‌ها'), subtitle: Text('اعلان‌های دستگاهی در نسخه متصل قابل تنظیم خواهند بود.')),
-      ListTile(leading: Icon(Icons.block_outlined), title: Text('حساب‌های مسدودشده')),
-      ListTile(leading: Icon(Icons.info_outline), title: Text('درباره IrShoGram'), subtitle: Text('نسخه اولیه محلی؛ همگام‌سازی آنلاین هنوز فعال نیست.')),
+    backgroundColor: Colors.white,
+    appBar: AppBar(title: const Text('تنظیمات و فعالیت‌ها', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+    body: ListView(children: [
+      Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 4), child: TextField(decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'جستجو در تنظیمات', filled: true, fillColor: const Color(0xFFEFEFEF), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)))),
+      _section('حساب شما', [
+        const ListTile(leading: Icon(Icons.account_circle_outlined), title: Text('مرکز حساب‌ها'), subtitle: Text('رمز عبور، امنیت و اطلاعات شخصی'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.person_outline), title: Text('جزئیات شخصی'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.lock_outline), title: Text('حریم خصوصی حساب'), subtitle: Text('مدیریت خصوصی یا عمومی بودن حساب'), trailing: Icon(Icons.chevron_right)),
+      ]),
+      _section('نحوه استفاده از IrShoGram', [
+        const ListTile(leading: Icon(Icons.bookmark_border), title: Text('ذخیره‌شده‌ها'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.archive_outlined), title: Text('بایگانی'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.access_time), title: Text('فعالیت‌های شما'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.notifications_none), title: Text('اعلان‌ها'), trailing: Icon(Icons.chevron_right)),
+      ]),
+      _section('چه کسی می‌تواند محتوای شما را ببیند؟', [
+        const ListTile(leading: Icon(Icons.block_outlined), title: Text('مسدودشده‌ها'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.visibility_outlined), title: Text('مخفی‌کردن استوری و لایو'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.comment_outlined), title: Text('دیدگاه‌ها'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.alternate_email), title: Text('برچسب‌ها و اشاره‌ها'), trailing: Icon(Icons.chevron_right)),
+      ]),
+      _section('بیشتر', [
+        const ListTile(leading: Icon(Icons.help_outline), title: Text('راهنما'), trailing: Icon(Icons.chevron_right)),
+        const ListTile(leading: Icon(Icons.info_outline), title: Text('درباره IrShoGram'), subtitle: Text('نسخه اولیه محلی؛ قابلیت‌های آنلاین پس از اتصال سرور فعال می‌شوند.')),
+      ]),
+      const Padding(padding: EdgeInsets.fromLTRB(16, 22, 16, 30), child: Text('IrShoGram', style: TextStyle(color: _igGrey, fontWeight: FontWeight.w600))),
     ]),
   );
 }
