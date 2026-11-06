@@ -11,6 +11,13 @@ void main() {
     expect(find.text('دایرکت'), findsWidgets);
     expect(find.text('ریلز'), findsOneWidget);
     expect(find.text('پروفایل'), findsOneWidget);
+    expect(find.byWidgetPredicate((widget) => widget is Directionality && widget.textDirection == TextDirection.rtl), findsWidgets);
+
+    await tester.tap(find.byTooltip('ایجاد'));
+    await tester.pumpAndSettle();
+    expect(find.text('ایجاد محتوای جدید'), findsOneWidget);
+    await tester.tap(find.text('ساخت ریلز'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('جستجو').last);
     await tester.pumpAndSettle();
