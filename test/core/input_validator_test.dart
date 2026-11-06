@@ -12,17 +12,17 @@ void main() {
     test('enforces profile and content limits', () {
       expect(InputValidator.displayName('کاربر'), isNull);
       expect(InputValidator.displayName(''), isNotNull);
-      expect(InputValidator.bio('x' * 301), isNotNull);
-      expect(InputValidator.caption('x' * 2200), isNull);
-      expect(InputValidator.caption('x' * 2201), isNotNull);
+      expect(InputValidator.bio(List<String>.filled(301, 'x').join()), isNotNull);
+      expect(InputValidator.caption(List<String>.filled(2200, 'x').join()), isNull);
+      expect(InputValidator.caption(List<String>.filled(2201, 'x').join()), isNotNull);
     });
 
     test('rejects empty or oversized comments and messages', () {
       expect(InputValidator.comment(' سلام '), isNull);
       expect(InputValidator.comment('  '), isNotNull);
-      expect(InputValidator.comment('x' * 2001), isNotNull);
+      expect(InputValidator.comment(List<String>.filled(2001, 'x').join()), isNotNull);
       expect(InputValidator.message('سلام'), isNull);
-      expect(InputValidator.message('x' * 5001), isNotNull);
+      expect(InputValidator.message(List<String>.filled(5001, 'x').join()), isNotNull);
     });
 
     test('requires exactly two distinct conversation participants', () {
