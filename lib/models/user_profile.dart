@@ -1,3 +1,5 @@
+import '../core/firestore_value_parser.dart';
+
 class UserProfile {
   const UserProfile({
     required this.uid,
@@ -23,8 +25,8 @@ class UserProfile {
         displayName: _requiredString(map, 'displayName'),
         bio: map['bio'] as String? ?? '',
         photoUrl: map['photoUrl'] as String?,
-        createdAt: _requiredDate(map, 'createdAt'),
-        updatedAt: _requiredDate(map, 'updatedAt'),
+        createdAt: parseDateTimeValue(map['createdAt'], fieldName: 'createdAt'),
+        updatedAt: parseDateTimeValue(map['updatedAt'], fieldName: 'updatedAt'),
       );
 
   Map<String, Object?> toMap() => {
@@ -42,14 +44,4 @@ String _requiredString(Map<String, Object?> map, String key) {
   final value = map[key];
   if (value is! String) throw FormatException('Missing or invalid "$key".');
   return value;
-}
-
-DateTime _requiredDate(Map<String, Object?> map, String key) {
-  final value = map[key];
-  if (value is DateTime) return value;
-  if (value is String) {
-    final parsed = DateTime.tryParse(value);
-    if (parsed != null) return parsed;
-  }
-  throw FormatException('Missing or invalid "$key".');
 }
