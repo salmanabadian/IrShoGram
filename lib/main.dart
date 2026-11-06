@@ -199,7 +199,7 @@ class _MainShellState extends State<MainShell> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (ctx) => SafeArea(child: Padding(
+      builder: (ctx) => SafeArea(child: SingleChildScrollView(child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 22),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('ایجاد محتوای جدید', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
