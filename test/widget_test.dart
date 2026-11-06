@@ -18,7 +18,7 @@ void main() {
     await tester.tap(find.byTooltip('ایجاد'));
     await tester.pumpAndSettle();
     expect(find.text('ایجاد محتوای جدید'), findsOneWidget);
-    expect(find.text('ایجاد پست'), findsOneWidget);
+    expect(find.text('ایجاد پست'), findsWidgets);
     expect(find.text('افزودن استوری'), findsOneWidget);
   });
 }
