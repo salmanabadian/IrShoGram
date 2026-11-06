@@ -122,7 +122,7 @@ class _MainShellState extends State<MainShell> {
     if (_busy) return;
     try {
       XFile? picked;
-      final isVideo = kind == 'reel' || (kind == 'story' && false);
+      final isVideo = kind == 'reel' || kind == 'storyVideo';
       if (isVideo) {
         picked = await _picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(seconds: 90));
       } else {
@@ -157,7 +157,7 @@ class _MainShellState extends State<MainShell> {
           )),
         );
       } else if (kind == 'story') {
-        final story = LocalStory(id: _store.newId(), username: _username, mediaPath: path, isVideo: false, createdAt: now);
+        final story = LocalStory(id: _store.newId(), username: _username, mediaPath: path, isVideo: isVideo, createdAt: now);
         setState(() => _stories.insert(0, story));
         await _store.saveStories(_stories);
         _notice('استوری به‌صورت محلی اضافه شد.');
@@ -202,7 +202,8 @@ class _MainShellState extends State<MainShell> {
           const Text('ایجاد محتوای جدید', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           ListTile(leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'post'); }),
-          ListTile(leading: const Icon(Icons.add_circle_outline), title: const Text('افزودن استوری'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'story'); }),
+          ListTile(leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'story'); }),
+          ListTile(leading: const Icon(Icons.video_camera_back_outlined), title: const Text('استوری ویدیویی'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'storyVideo'); }),
           ListTile(leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'reel'); }),
         ]),
       )),
