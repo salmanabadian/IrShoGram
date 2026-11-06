@@ -1,5 +1,6 @@
 import '../models/messaging.dart';
 import '../models/social_content.dart';
+import '../models/social_metadata.dart';
 import '../models/user_profile.dart';
 
 /// Contract for the real backend implementation.
@@ -46,6 +47,10 @@ abstract class SocialRepository {
     required String commentId,
     required String authorId,
   });
+  Future<List<PostComment>> getComments(String postId, {int limit = 50});
+
+  Future<List<AppNotification>> getNotifications(String uid, {int limit = 50});
+  Future<void> markNotificationRead(String uid, String notificationId);
 
   Future<String> createStory(Story story);
   Future<List<Story>> getActiveStories({int limit = 50});
