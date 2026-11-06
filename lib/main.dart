@@ -204,10 +204,10 @@ class _MainShellState extends State<MainShell> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('ایجاد محتوای جدید', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          ListTile(leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'post'); }),
-          ListTile(leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'story'); }),
-          ListTile(leading: const Icon(Icons.video_camera_back_outlined), title: const Text('استوری ویدیویی'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'storyVideo'); }),
-          ListTile(leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'reel'); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'post'); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'story'); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_camera_back_outlined), title: const Text('استوری ویدیویی'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'storyVideo'); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'reel'); }),
         ]),
       )),
     );
@@ -310,9 +310,9 @@ class _MainShellState extends State<MainShell> {
   Widget _storiesStrip() {
     final mine = _stories.where((s) => s.username == _username).toList();
     final peers = _stories.where((s) => s.username != _username).toList();
-    return SizedBox(height: 112, child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8), children: [
+    return SizedBox(height: 112, child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), children: [
       GestureDetector(onTap: () => _chooseMedia(kind: 'story'), child: SizedBox(width: 76, child: Column(children: [
-        Stack(children: [_avatar('شما', radius: 30, color: Theme.of(context).colorScheme.surfaceContainerHighest), const Positioned(right: 0, bottom: 0, child: CircleAvatar(radius: 10, backgroundColor: _purple, child: Icon(Icons.add, size: 15, color: Colors.white)))]),
+        Stack(children: [_avatar('شما', radius: 28, color: Theme.of(context).colorScheme.surfaceContainerHighest), const Positioned(right: 0, bottom: 0, child: CircleAvatar(radius: 10, backgroundColor: _purple, child: Icon(Icons.add, size: 15, color: Colors.white)))]),
         const SizedBox(height: 5), const Text('داستان شما', style: TextStyle(fontSize: 11)),
       ]))),
       for (final story in [...mine, ...peers]) GestureDetector(
