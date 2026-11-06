@@ -101,22 +101,62 @@ class _MainShellState extends State<MainShell> {
   );
 
   Widget postCard(DemoPost post) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    ListTile(leading: CircleAvatar(backgroundColor: post.color, child: Text(post.user.characters.first, style: const TextStyle(color: Colors.white))),
-      title: Text(post.user, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)), subtitle: const Text('پیشنهاد برای شما', style: TextStyle(fontSize: 11)),
-      trailing: IconButton(icon: const Icon(Icons.more_horiz), onPressed: () => info('گزینه‌های بیشتر به‌زودی اضافه می‌شود.'))),
-    Container(height: 300, width: double.infinity, color: post.color, child: Stack(alignment: Alignment.center, children: [
-      Icon(Icons.photo_camera_back_outlined, size: 82, color: Colors.white.withValues(alpha: .65)),
-      Positioned(bottom: 14, child: Text('IrShoGram', style: TextStyle(color: Colors.white.withValues(alpha: .8), fontSize: 22, fontWeight: FontWeight.bold))),
-    ])),
-    Row(children: [
-      IconButton(onPressed: () => setState(() { post.liked = !post.liked; post.likes += post.liked ? 1 : -1; }), icon: Icon(post.liked ? Icons.favorite : Icons.favorite_border, color: post.liked ? Colors.red : null)),
-      IconButton(onPressed: () => comments(post), icon: const Icon(Icons.mode_comment_outlined)),
-      IconButton(onPressed: () => info('اشتراک‌گذاری پس از اتصال سرویس فعال می‌شود.'), icon: const Icon(Icons.send_outlined)),
-      const Spacer(),
-      IconButton(onPressed: () => setState(() => post.saved = !post.saved), icon: Icon(post.saved ? Icons.bookmark : Icons.bookmark_border)),
-    ]),
-    Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text(post.likes.toString() + ' پسند', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-    Padding(padding: const EdgeInsets.fromLTRB(14, 5, 14, 16), child: Text(post.user + '  ' + post.caption)),
+    ListTile(
+      leading: CircleAvatar(backgroundColor: post.color, child: Text(post.user.characters.first, style: const TextStyle(color: Colors.white))),
+      title: Text(post.user, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+      subtitle: const Text('پیشنهاد برای شما', style: TextStyle(fontSize: 11)),
+      trailing: IconButton(icon: const Icon(Icons.more_horiz), onPressed: () => info('گزینه‌های بیشتر به‌زودی اضافه می‌شود.')),
+    ),
+    Container(
+      height: 300,
+      width: double.infinity,
+      color: post.color,
+      child: Stack(alignment: Alignment.center, children: [
+        Icon(Icons.photo_camera_back_outlined, size: 82, color: Colors.white.withValues(alpha: .65)),
+        Positioned(bottom: 14, child: Text('IrShoGram', style: TextStyle(color: Colors.white.withValues(alpha: .8), fontSize: 22, fontWeight: FontWeight.bold))),
+      ]),
+    ),
+    Padding(
+      padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
+      child: Row(children: [
+        IconButton(
+          tooltip: post.liked ? 'برداشتن پسند' : 'پسندیدن',
+          onPressed: () => setState(() { post.liked = !post.liked; post.likes += post.liked ? 1 : -1; }),
+          icon: Icon(post.liked ? Icons.favorite : Icons.favorite_border, color: post.liked ? Colors.red : null, size: 27),
+        ),
+        IconButton(tooltip: 'دیدگاه‌ها', onPressed: () => comments(post), icon: const Icon(Icons.mode_comment_outlined, size: 26)),
+        IconButton(tooltip: 'ارسال', onPressed: () => info('اشتراک‌گذاری پس از اتصال سرویس فعال می‌شود.'), icon: const Icon(Icons.send_outlined, size: 25)),
+        const Spacer(),
+        IconButton(tooltip: post.saved ? 'حذف از ذخیره‌ها' : 'ذخیره پست', onPressed: () => setState(() => post.saved = !post.saved), icon: Icon(post.saved ? Icons.bookmark : Icons.bookmark_border, size: 26)),
+      ]),
+    ),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Text('${post.likes} پسند', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+    ),
+    Padding(
+      padding: const EdgeInsets.fromLTRB(14, 5, 14, 0),
+      child: RichText(text: TextSpan(style: DefaultTextStyle.of(context).style, children: [
+        TextSpan(text: post.user + '  ', style: const TextStyle(fontWeight: FontWeight.bold)),
+        TextSpan(text: post.caption),
+      ])),
+    ),
+    if (post.comments.isNotEmpty)
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 5, 14, 12),
+        child: GestureDetector(
+          onTap: () => comments(post),
+          child: Text('مشاهده همه ${post.comments.length} دیدگاه', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
+        ),
+      )
+    else
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 5, 14, 12),
+        child: GestureDetector(
+          onTap: () => comments(post),
+          child: Text('افزودن دیدگاه…', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
+        ),
+      ),
     const Divider(height: 1),
   ]);
 
@@ -132,13 +172,95 @@ class _MainShellState extends State<MainShell> {
   Widget searchPage() {
     final q = search.text.trim().toLowerCase();
     final results = people.where((p) => p.toLowerCase().contains(q)).toList();
+    final exploreColors = [
+      const Color(0xFF7651A8), const Color(0xFF3B8290), const Color(0xFFB87942),
+      const Color(0xFF9A526B), const Color(0xFF557A52), const Color(0xFF45658E),
+      const Color(0xFF8A6848), const Color(0xFF725C91), const Color(0xFF397B79),
+      const Color(0xFF9B7045), const Color(0xFF5B668D), const Color(0xFF985C55),
+    ];
+    final exploreIcons = [
+      Icons.landscape_outlined, Icons.portrait_outlined, Icons.restaurant_outlined,
+      Icons.pets_outlined, Icons.directions_car_outlined, Icons.sports_basketball_outlined,
+      Icons.travel_explore_outlined, Icons.music_note_outlined, Icons.camera_alt_outlined,
+      Icons.local_cafe_outlined, Icons.palette_outlined, Icons.fitness_center_outlined,
+    ];
     return Column(children: [
-      Padding(padding: const EdgeInsets.all(12), child: TextField(controller: search, onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: 'جستجوی افراد', filled: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-          suffixIcon: IconButton(icon: const Icon(Icons.close), onPressed: () { search.clear(); setState(() {}); })))),
-      Expanded(child: q.isEmpty ? const Center(child: Text('برای پیدا کردن افراد، نام آن‌ها را جستجو کنید.'))
-        : results.isEmpty ? const Center(child: Text('نتیجه‌ای پیدا نشد.'))
-        : ListView(children: results.map((p) => ListTile(leading: const CircleAvatar(child: Icon(Icons.person)), title: Text(p), subtitle: const Text('@user'), trailing: const Icon(Icons.chevron_left))).toList())),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+        child: TextField(
+          controller: search,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search),
+            hintText: 'جستجوی افراد، عکس‌ها و ویدیوها',
+            filled: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: BorderSide.none),
+            suffixIcon: q.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () { search.clear(); setState(() {}); }),
+          ),
+        ),
+      ),
+      if (q.isNotEmpty)
+        Expanded(
+          child: results.isEmpty
+              ? const Center(child: Text('نتیجه‌ای پیدا نشد.'))
+              : ListView(children: results.map((p) => ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person)),
+                  title: Text(p),
+                  subtitle: const Text('@user'),
+                  trailing: const Icon(Icons.chevron_left),
+                )).toList()),
+        )
+      else ...[
+        SizedBox(
+          height: 43,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            children: [
+              for (final label in ['برای شما', 'عکاسی', 'سفر', 'ورزش', 'هنر', 'ویدیو'])
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 8),
+                  child: ActionChip(
+                    label: Text(label),
+                    onPressed: () => info('دسته‌بندی پس از اتصال جستجوی محتوا فعال می‌شود.'),
+                    side: BorderSide(color: Theme.of(context).dividerColor),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 5),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(2),
+            itemCount: exploreIcons.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 2,
+              mainAxisSpacing: 2,
+              childAspectRatio: .92,
+            ),
+            itemBuilder: (ctx, i) => InkWell(
+              onTap: () => info('نمایش محتوای واقعی Explore پس از اتصال پایگاه داده فعال می‌شود.'),
+              child: Container(
+                color: exploreColors[i],
+                child: Stack(fit: StackFit.expand, children: [
+                  Center(child: Icon(exploreIcons[i], color: Colors.white.withValues(alpha: .82), size: 43)),
+                  Positioned(
+                    right: 7,
+                    bottom: 7,
+                    child: Row(children: [
+                      const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 17),
+                      Text(i % 3 == 0 ? 'ویدیو' : 'پست', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ],
     ]);
   }
 
