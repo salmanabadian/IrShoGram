@@ -343,3 +343,5 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+// GitHub write-access verification
