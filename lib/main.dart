@@ -355,9 +355,9 @@ class _MainShellState extends State<MainShell> {
         IconButton(onPressed: () => _notice('اشتراک‌گذاری عمومی پس از اتصال سرویس فعال می‌شود.'), icon: const Icon(Icons.send_outlined, color: _igBlack, size: 25)),
         const Spacer(), IconButton(onPressed: () => _toggleSave(post), icon: Icon(post.savedByMe ? Icons.bookmark : Icons.bookmark_border, color: _igBlack, size: 26)),
       ])),
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('\${post.likes.length} پسند', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _igBlack))),
-      if (post.caption.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 5, 14, 12), child: Text.rich(TextSpan(children: [TextSpan(text: '\${post.username}  ', style: const TextStyle(fontWeight: FontWeight.w700)), TextSpan(text: post.caption)]))),
-      if (post.comments.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 12), child: InkWell(onTap: () => _showComments(post), child: Text('مشاهده \${post.comments.length} دیدگاه', style: const TextStyle(color: _igGrey, fontSize: 13)))),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('${post.likes.length} پسند', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _igBlack))),
+      if (post.caption.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 5, 14, 12), child: Text.rich(TextSpan(children: [TextSpan(text: '${post.username}  ', style: const TextStyle(fontWeight: FontWeight.w700)), TextSpan(text: post.caption)]))),
+      if (post.comments.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 12), child: InkWell(onTap: () => _showComments(post), child: Text('مشاهده ${post.comments.length} دیدگاه', style: const TextStyle(color: _igGrey, fontSize: 13)))),
       const Divider(height: 1, color: _igBorder),
     ]);
   }
