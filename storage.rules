@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validImage() {
+      return request.resource != null
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    function validVideo() {
+      return request.resource != null
+        && request.resource.contentType.matches('video/.*')
+        && request.resource.size < 100 * 1024 * 1024;
+    }
+
+    match /users/{uid}/profile/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if isOwner(uid) && validImage();
+      allow delete: if isOwner(uid);
+    }
+
+    match /posts/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if isOwner(uid) && (validImage() || validVideo());
+      allow delete: if isOwner(uid);
+    }
+
+    match /stories/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if isOwner(uid) && (validImage() || validVideo());
+      allow delete: if isOwner(uid);
+    }
+
+    match /reels/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if isOwner(uid) && validVideo();
+      allow delete: if isOwner(uid);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
