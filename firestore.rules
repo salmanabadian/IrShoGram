@@ -55,9 +55,11 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read, update: if isOwner(uid)
-          && (request.method != 'update'
-            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
+        allow read: if isOwner(uid);
+        allow update: if isOwner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+          && request.resource.data.read is bool;
+        // Notifications are created and removed only by trusted backend code.
         allow create, delete: if false;
       }
     }
