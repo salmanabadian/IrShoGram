@@ -10,7 +10,7 @@ IrShoGram is a Flutter-based social app prototype.
 - Direct-message list and local chat UI
 - Full-screen vertical Reels-style browsing with sample placeholders
 - Profile screen, theme switch, and account-management entry point
-- Persian interface and five-tab navigation
+- Persian interface with right-to-left page content and five-tab navigation
 
 ## Important implementation status
 
