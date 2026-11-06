@@ -7,14 +7,12 @@ class PostComment {
     required this.authorId,
     required this.text,
     required this.createdAt,
-    this.updatedAt,
   });
 
   final String id;
   final String authorId;
   final String text;
   final DateTime createdAt;
-  final DateTime? updatedAt;
 
   factory PostComment.fromMap(String id, Map<String, Object?> map) {
     final authorId = map['authorId'];
@@ -27,9 +25,6 @@ class PostComment {
       authorId: authorId,
       text: text,
       createdAt: parseDateTimeValue(map['createdAt'], fieldName: 'createdAt'),
-      updatedAt: map['updatedAt'] == null
-          ? null
-          : parseDateTimeValue(map['updatedAt'], fieldName: 'updatedAt'),
     );
   }
 
@@ -37,7 +32,6 @@ class PostComment {
         'authorId': authorId,
         'text': text,
         'createdAt': createdAt,
-        if (updatedAt != null) 'updatedAt': updatedAt,
       };
 }
 
