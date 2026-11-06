@@ -87,7 +87,7 @@ class Story {
         authorId: _stringFromMap(map, 'authorId'),
         mediaUrl: _stringFromMap(map, 'mediaUrl'),
         mediaType: MediaTypeValue.parse(map['mediaType']),
-        createdAt: _dateFromMap(map, 'createdAt'),
+        createdAt: parseDateTimeValue(map['createdAt'], fieldName: 'createdAt'),
         expiresAt: parseDateTimeValue(map['expiresAt'], fieldName: 'expiresAt'),
       );
 
@@ -120,7 +120,7 @@ class Reel {
         authorId: _stringFromMap(map, 'authorId'),
         caption: _stringFromMap(map, 'caption'),
         mediaUrl: _stringFromMap(map, 'mediaUrl'),
-        createdAt: _dateFromMap(map, 'createdAt'),
+        createdAt: parseDateTimeValue(map['createdAt'], fieldName: 'createdAt'),
       );
 
   Map<String, Object?> toMap() => {
