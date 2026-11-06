@@ -1,3 +1,4 @@
+import 'package:irshogram/core/firestore_value_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:irshogram/models/messaging.dart';
 import 'package:irshogram/models/social_content.dart';
@@ -74,4 +75,20 @@ void main() {
     expect(restored.mediaUrl, message.mediaUrl);
     expect(restored.text, 'hello');
   });
+  test('date parser accepts Firebase Timestamp-like values', () {
+    final timestamp = _FakeFirestoreTimestamp(now);
+    expect(
+      parseDateTimeValue(timestamp, fieldName: 'createdAt'),
+      now,
+    );
+  });
+
+}
+
+class _FakeFirestoreTimestamp {
+  const _FakeFirestoreTimestamp(this.value);
+
+  final DateTime value;
+
+  DateTime toDate() => value;
 }
