@@ -1,6 +1,7 @@
 import '../core/input_validator.dart';
 import '../models/messaging.dart';
 import '../models/social_content.dart';
+import '../models/social_metadata.dart';
 import '../repositories/social_repository.dart';
 
 /// Validates user actions before they reach the backend adapter.
@@ -73,6 +74,53 @@ class SocialActions {
       authorId: currentUid,
       text: text.trim(),
     );
+  }
+
+  Future<void> deleteComment({
+    required String postId,
+    required String commentId,
+    required String currentUid,
+  }) {
+    if (postId.isEmpty || commentId.isEmpty || currentUid.isEmpty) {
+      throw ArgumentError('Post, comment, and user IDs must not be empty.');
+    }
+    return _repository.deleteComment(
+      postId: postId,
+      commentId: commentId,
+      authorId: currentUid,
+    );
+  }
+
+  Future<List<PostComment>> getComments(
+    String postId, {
+    int limit = 50,
+  }) {
+    if (postId.isEmpty) throw ArgumentError('Post ID must not be empty.');
+    if (limit < 1 || limit > 100) {
+      throw RangeError.range(limit, 1, 100, 'limit');
+    }
+    return _repository.getComments(postId, limit: limit);
+  }
+
+  Future<List<AppNotification>> getNotifications(
+    String uid, {
+    int limit = 50,
+  }) {
+    if (uid.isEmpty) throw ArgumentError('User ID must not be empty.');
+    if (limit < 1 || limit > 100) {
+      throw RangeError.range(limit, 1, 100, 'limit');
+    }
+    return _repository.getNotifications(uid, limit: limit);
+  }
+
+  Future<void> markNotificationRead({
+    required String uid,
+    required String notificationId,
+  }) {
+    if (uid.isEmpty || notificationId.isEmpty) {
+      throw ArgumentError('User and notification IDs must not be empty.');
+    }
+    return _repository.markNotificationRead(uid, notificationId);
   }
 
   Future<String> sendTextMessage({
