@@ -1,12 +1,4 @@
-DateTime _messageDate(Map<String, Object?> map, String key) {
-  final value = map[key];
-  if (value is DateTime) return value;
-  if (value is String) {
-    final parsed = DateTime.tryParse(value);
-    if (parsed != null) return parsed;
-  }
-  throw FormatException('Missing or invalid "$key".');
-}
+import '../core/firestore_value_parser.dart';
 
 class Conversation {
   const Conversation({
@@ -31,8 +23,8 @@ class Conversation {
     return Conversation(
       id: id,
       participantIds: List<String>.unmodifiable(participants.cast<String>()),
-      createdAt: _messageDate(map, 'createdAt'),
-      updatedAt: _messageDate(map, 'updatedAt'),
+      createdAt: parseDateTimeValue(map['createdAt'], fieldName: 'createdAt'),
+      updatedAt: parseDateTimeValue(map['updatedAt'], fieldName: 'updatedAt'),
     );
   }
 
@@ -66,7 +58,7 @@ class DirectMessage {
         senderId: map['senderId'] as String,
         text: map['text'] as String,
         mediaUrl: map['mediaUrl'] as String?,
-        createdAt: _messageDate(map, 'createdAt'),
+        createdAt: parseDateTimeValue(map['createdAt'], fieldName: 'createdAt'),
         type: map['type'] as String? ?? 'text',
       );
 
