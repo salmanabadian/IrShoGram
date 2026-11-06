@@ -201,7 +201,12 @@ class _MainShellState extends State<MainShell> {
         leading: tab == 0 ? IconButton(tooltip: 'اعلان‌ها', onPressed: () => info('فعلاً اعلان جدیدی ندارید.'), icon: const Icon(Icons.favorite_border)) : null,
         actions: tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: createContent, icon: const Icon(Icons.add, size: 30))] : null,
       ),
-      body: IndexedStack(index: tab, children: [home(), searchPage(), messagesPage(), reelsPage(), profilePage()]),
+      body: Directionality(
+        // Keep Persian page content right-to-left without changing the
+        // left/right placement of the header actions or bottom navigation.
+        textDirection: TextDirection.rtl,
+        child: IndexedStack(index: tab, children: [home(), searchPage(), messagesPage(), reelsPage(), profilePage()]),
+      ),
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
         NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'خانه'),
         NavigationDestination(icon: Icon(Icons.search), label: 'جستجو'),
