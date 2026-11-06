@@ -533,7 +533,7 @@ class _MainShellState extends State<MainShell> {
     const titles = ['IrShoGram', 'جستجو', 'دایرکت', 'ریلز', 'پروفایل'];
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     final pages = [_homePage(), _searchPage(), _messagesPage(), _reelsPage(), _profilePage()];
-    return Directionality(textDirection: TextDirection.rtl, child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(titles[_tab], style: TextStyle(fontSize: _tab == 0 ? 27 : 20, fontWeight: FontWeight.w800, fontStyle: _tab == 0 ? FontStyle.italic : FontStyle.normal, letterSpacing: _tab == 0 ? -.8 : 0)),
@@ -541,7 +541,7 @@ class _MainShellState extends State<MainShell> {
         leading: _tab == 0 ? IconButton(tooltip: 'اعلان‌ها', onPressed: _showNotifications, icon: const Icon(Icons.favorite_border)) : null,
         actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: _createMenu, icon: const Icon(Icons.add, size: 30))] : null,
       ),
-      body: IndexedStack(index: _tab, children: pages),
+      body: Directionality(textDirection: TextDirection.rtl, child: IndexedStack(index: _tab, children: pages)),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (index) => setState(() => _tab = index),
@@ -554,7 +554,7 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
       floatingActionButton: _busy ? const FloatingActionButton(onPressed: null, child: CircularProgressIndicator()) : null,
-    ));
+    );
   }
 }
 
