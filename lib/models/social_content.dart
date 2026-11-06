@@ -1,3 +1,5 @@
+import '../core/firestore_value_parser.dart';
+
 enum MediaType { image, video }
 
 extension MediaTypeValue on MediaType {
@@ -13,16 +15,6 @@ extension MediaTypeValue on MediaType {
         throw FormatException('Unsupported media type: $value');
     }
   }
-}
-
-DateTime _dateFromMap(Map<String, Object?> map, String key) {
-  final value = map[key];
-  if (value is DateTime) return value;
-  if (value is String) {
-    final parsed = DateTime.tryParse(value);
-    if (parsed != null) return parsed;
-  }
-  throw FormatException('Missing or invalid "$key".');
 }
 
 String _stringFromMap(Map<String, Object?> map, String key) {
@@ -57,8 +49,8 @@ class SocialPost {
         caption: _stringFromMap(map, 'caption'),
         mediaUrl: _stringFromMap(map, 'mediaUrl'),
         mediaType: MediaTypeValue.parse(map['mediaType']),
-        createdAt: _dateFromMap(map, 'createdAt'),
-        updatedAt: _dateFromMap(map, 'updatedAt'),
+        createdAt: parseDateTimeValue(map['createdAt'], fieldName: 'createdAt'),
+        updatedAt: parseDateTimeValue(map['updatedAt'], fieldName: 'updatedAt'),
       );
 
   Map<String, Object?> toMap() => {
@@ -96,7 +88,7 @@ class Story {
         mediaUrl: _stringFromMap(map, 'mediaUrl'),
         mediaType: MediaTypeValue.parse(map['mediaType']),
         createdAt: _dateFromMap(map, 'createdAt'),
-        expiresAt: _dateFromMap(map, 'expiresAt'),
+        expiresAt: parseDateTimeValue(map['expiresAt'], fieldName: 'expiresAt'),
       );
 
   Map<String, Object?> toMap() => {
