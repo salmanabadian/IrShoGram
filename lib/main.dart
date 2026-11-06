@@ -11,7 +11,10 @@ import 'services/local_social_store.dart';
 
 void main() => runApp(const IrShoGramApp());
 
-const _purple = Color(0xFF8E3DB8);
+const _purple = Color(0xFF0095F6);
+const _igBlack = Color(0xFF262626);
+const _igGrey = Color(0xFF8E8E8E);
+const _igBorder = Color(0xFFDBDBDB);
 const _people = <String>['ali.photo', 'mohammad', 'reza_daily', 'sara.art', 'amir', 'maryam'];
 
 class IrShoGramApp extends StatefulWidget {
@@ -30,13 +33,15 @@ class _IrShoGramAppState extends State<IrShoGramApp> {
     debugShowCheckedModeBanner: false,
     themeMode: _mode,
     theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: _purple, brightness: Brightness.light),
-      scaffoldBackgroundColor: const Color(0xFFFAFAFA),
-      appBarTheme: const AppBarTheme(backgroundColor: Color(0xFFFAFAFA), surfaceTintColor: Colors.transparent),
+      useMaterial3: false,
+      brightness: Brightness.light,
+      primaryColor: const Color(0xFF0095F6),
+      scaffoldBackgroundColor: Colors.white,
+      dividerColor: const Color(0xFFDBDBDB),
+      appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: Color(0xFF262626), elevation: 0, centerTitle: true),
     ),
     darkTheme: ThemeData(
-      useMaterial3: true,
+      useMaterial3: false,
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB65CDE), brightness: Brightness.dark),
     ),
@@ -328,56 +333,50 @@ class _MainShellState extends State<MainShell> {
   Widget _postCard(LocalPost post) {
     final liked = post.likes.contains(_username);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      ListTile(
-        leading: _avatar(post.username),
-        title: Text(post.username, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-        subtitle: Text(_timeAgo(post.createdAt), style: const TextStyle(fontSize: 11)),
-        trailing: PopupMenuButton<String>(onSelected: (value) async {
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9), child: Row(children: [
+        _avatar(post.username, radius: 17), const SizedBox(width: 9),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(post.username, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _igBlack)),
+          Text(_timeAgo(post.createdAt), style: const TextStyle(fontSize: 11, color: _igGrey)),
+        ])),
+        PopupMenuButton<String>(icon: const Icon(Icons.more_horiz, color: _igBlack), onSelected: (value) async {
           if (value == 'delete' && post.username == _username) {
-            setState(() => _posts.removeWhere((p) => p.id == post.id));
-            await _store.savePosts(_posts);
-          } else if (value == 'report') {
-            _notice('گزارش فقط به‌صورت محلی ثبت شد؛ سامانه بررسی گزارش نیازمند سرور است.');
-          }
+            setState(() => _posts.removeWhere((p) => p.id == post.id)); await _store.savePosts(_posts);
+          } else if (value == 'report') { _notice('گزارش فقط به‌صورت محلی ثبت شد؛ سامانه بررسی گزارش نیازمند سرور است.'); }
         }, itemBuilder: (_) => [
           if (post.username == _username) const PopupMenuItem(value: 'delete', child: Text('حذف پست')),
           const PopupMenuItem(value: 'report', child: Text('گزارش')),
         ]),
-      ),
-      AspectRatio(aspectRatio: 1, child: post.isVideo
-        ? LocalVideo(path: post.mediaPath)
-        : Image.file(File(post.mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black12, child: Center(child: Icon(Icons.broken_image_outlined, size: 48))))),
-      Row(children: [
-        IconButton(onPressed: () => _toggleLike(post), icon: Icon(liked ? Icons.favorite : Icons.favorite_border, color: liked ? Colors.red : null)),
-        IconButton(onPressed: () => _showComments(post), icon: const Icon(Icons.mode_comment_outlined)),
-        IconButton(onPressed: () => _notice('اشتراک‌گذاری عمومی پس از اتصال سرویس فعال می‌شود.'), icon: const Icon(Icons.send_outlined)),
-        const Spacer(),
-        IconButton(onPressed: () => _toggleSave(post), icon: Icon(post.savedByMe ? Icons.bookmark : Icons.bookmark_border)),
-      ]),
-      Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('${post.likes.length} پسند', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-      if (post.caption.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 5, 14, 14), child: Text.rich(TextSpan(children: [TextSpan(text: '${post.username}  ', style: const TextStyle(fontWeight: FontWeight.bold)), TextSpan(text: post.caption)]))),
-      if (post.comments.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 12), child: InkWell(onTap: () => _showComments(post), child: Text('مشاهده ${post.comments.length} دیدگاه', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)))),
-      const Divider(height: 1),
+      ])),
+      AspectRatio(aspectRatio: 1, child: post.isVideo ? LocalVideo(path: post.mediaPath) : Image.file(File(post.mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black12, child: Center(child: Icon(Icons.broken_image_outlined, size: 48))))),
+      Padding(padding: const EdgeInsets.fromLTRB(4, 2, 4, 0), child: Row(children: [
+        IconButton(onPressed: () => _toggleLike(post), icon: Icon(liked ? Icons.favorite : Icons.favorite_border, color: liked ? Colors.red : _igBlack, size: 27)),
+        IconButton(onPressed: () => _showComments(post), icon: const Icon(Icons.mode_comment_outlined, color: _igBlack, size: 25)),
+        IconButton(onPressed: () => _notice('اشتراک‌گذاری عمومی پس از اتصال سرویس فعال می‌شود.'), icon: const Icon(Icons.send_outlined, color: _igBlack, size: 25)),
+        const Spacer(), IconButton(onPressed: () => _toggleSave(post), icon: Icon(post.savedByMe ? Icons.bookmark : Icons.bookmark_border, color: _igBlack, size: 26)),
+      ])),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('\${post.likes.length} پسند', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _igBlack))),
+      if (post.caption.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 5, 14, 12), child: Text.rich(TextSpan(children: [TextSpan(text: '\${post.username}  ', style: const TextStyle(fontWeight: FontWeight.w700)), TextSpan(text: post.caption)]))),
+      if (post.comments.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 12), child: InkWell(onTap: () => _showComments(post), child: Text('مشاهده \${post.comments.length} دیدگاه', style: const TextStyle(color: _igGrey, fontSize: 13)))),
+      const Divider(height: 1, color: _igBorder),
     ]);
   }
 
-  Widget _homePage() => _posts.isEmpty
-    ? ListView(children: [
-        _storiesStrip(),
-        const SizedBox(height: 50),
-        const Icon(Icons.photo_library_outlined, size: 58, color: Colors.grey),
-        const SizedBox(height: 12),
-        const Center(child: Text('هنوز پستی منتشر نشده است.', style: TextStyle(fontWeight: FontWeight.w600))),
-        const SizedBox(height: 6),
-        const Center(child: Text('اولین عکس یا ویدیوی خود را به اشتراک بگذارید.')),
-        const SizedBox(height: 14),
-        Center(child: FilledButton.icon(onPressed: _createMenu, icon: const Icon(Icons.add), label: const Text('ایجاد پست'))),
-      ])
-    : ListView(padding: const EdgeInsets.only(bottom: 18), children: [
-        _storiesStrip(),
-        const Divider(height: 1),
-        for (final post in _posts) _postCard(post),
-      ]);
+  Widget _homePage() => ListView(padding: const EdgeInsets.only(bottom: 12), children: [
+    _storiesStrip(),
+    const Divider(height: 1, color: _igBorder),
+    if (_posts.isEmpty) ...[
+      const SizedBox(height: 70), const Icon(Icons.photo_library_outlined, size: 54, color: _igGrey),
+      const SizedBox(height: 14),
+      const Center(child: Text('هنوز پستی منتشر نشده است.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack))),
+      const SizedBox(height: 6),
+      const Center(child: Text('اولین عکس یا ویدیوی خود را به اشتراک بگذارید.', style: TextStyle(color: _igGrey))),
+      const SizedBox(height: 16),
+      Center(child: TextButton(onPressed: _createMenu, child: const Text('ایجاد پست'))),
+    ] else ...[
+      for (final post in _posts) _postCard(post),
+    ],
+  ]);
 
   Widget _searchPage() {
     final query = _searchController.text.trim().toLowerCase();
@@ -473,38 +472,60 @@ class _MainShellState extends State<MainShell> {
   Widget _profilePage() {
     final ownPosts = _posts.where((p) => p.username == _username).toList();
     final saved = _posts.where((p) => p.savedByMe).toList();
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      Row(children: [
-        _avatar(_username, radius: 42),
-        const SizedBox(width: 24),
+    return ListView(padding: EdgeInsets.zero, children: [
+      Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 12), child: Row(children: [
+        Text(_username, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _igBlack)),
+        const Spacer(),
+        IconButton(tooltip: 'ایجاد پست', onPressed: _createMenu, icon: const Icon(Icons.add_box_outlined, size: 27, color: _igBlack)),
+        PopupMenuButton<String>(icon: const Icon(Icons.menu, size: 27, color: _igBlack), onSelected: (value) {
+          if (value == 'saved') Navigator.push(context, MaterialPageRoute(builder: (_) => SavedPostsPage(posts: saved)));
+          if (value == 'settings') Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+          if (value == 'accounts') _notice('مدیریت حساب اینترنتی به سرویس احراز هویت نیاز دارد.');
+          if (value == 'theme') widget.onThemeChanged(!widget.isDark);
+        }, itemBuilder: (_) => [
+          const PopupMenuItem(value: 'saved', child: Text('ذخیره‌شده‌ها')),
+          const PopupMenuItem(value: 'accounts', child: Text('مدیریت حساب‌ها')),
+          const PopupMenuItem(value: 'settings', child: Text('تنظیمات و حریم خصوصی')),
+          PopupMenuItem(value: 'theme', child: Text(widget.isDark ? 'حالت روشن' : 'حالت تاریک')),
+        ]),
+      ])),
+      Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Row(children: [
+        _avatar(_username, radius: 42), const SizedBox(width: 25),
         Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          _stat(ownPosts.length.toString(), 'پست'),
-          _stat('—', 'دنبال‌کننده'),
-          _stat(_following.length.toString(), 'دنبال‌شونده'),
+          _stat(ownPosts.length.toString(), 'پست'), _stat('—', 'دنبال‌کننده'), _stat(_following.length.toString(), 'دنبال‌شونده'),
         ])),
+      ])),
+      Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(_profile['name'] ?? 'کاربر ایرشوگرام', style: const TextStyle(fontWeight: FontWeight.w700, color: _igBlack)),
+        if ((_profile['bio'] ?? '').isNotEmpty) Padding(padding: const EdgeInsets.only(top: 3), child: Text(_profile['bio']!, style: const TextStyle(color: _igBlack))),
+      ])),
+      Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 12), child: Row(children: [
+        Expanded(child: SizedBox(height: 34, child: OutlinedButton(onPressed: _editProfile, style: OutlinedButton.styleFrom(foregroundColor: _igBlack, side: const BorderSide(color: _igBorder), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)), padding: EdgeInsets.zero), child: const Text('ویرایش پروفایل', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))))),
+        const SizedBox(width: 7),
+        Expanded(child: SizedBox(height: 34, child: OutlinedButton(onPressed: () => _notice('اشتراک‌گذاری پروفایل پس از اتصال سرویس فعال می‌شود.'), style: OutlinedButton.styleFrom(foregroundColor: _igBlack, side: const BorderSide(color: _igBorder), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)), padding: EdgeInsets.zero), child: const Text('اشتراک‌گذاری پروفایل', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13))))),
+      ])),
+      SizedBox(height: 94, child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 14), children: [
+        Column(children: [
+          Container(width: 62, height: 62, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: _igBorder)), child: const Center(child: Icon(Icons.add, size: 28, color: _igBlack))),
+          const SizedBox(height: 6), const Text('جدید', style: TextStyle(fontSize: 11, color: _igBlack)),
+        ]),
+      ])),
+      const Divider(height: 1, color: _igBorder),
+      const Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+        Padding(padding: EdgeInsets.symmetric(vertical: 11), child: Icon(Icons.grid_on_outlined, color: _igBlack, size: 23)),
+        Padding(padding: EdgeInsets.symmetric(vertical: 11), child: Icon(Icons.video_library_outlined, color: _igGrey, size: 23)),
+        Padding(padding: EdgeInsets.symmetric(vertical: 11), child: Icon(Icons.person_pin_outlined, color: _igGrey, size: 23)),
       ]),
-      const SizedBox(height: 14),
-      Text(_profile['name'] ?? 'کاربر ایرشوگرام', style: const TextStyle(fontWeight: FontWeight.bold)),
-      Text(_profile['bio'] ?? '', maxLines: 4),
-      const SizedBox(height: 14),
-      OutlinedButton(onPressed: _editProfile, child: const Text('ویرایش پروفایل')),
-      const Divider(height: 28),
-      ListTile(leading: const Icon(Icons.bookmark_border), title: const Text('ذخیره‌شده‌ها'), trailing: Text(saved.length.toString()), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SavedPostsPage(posts: saved)))),
-      ListTile(leading: const Icon(Icons.person_add_alt), title: const Text('مدیریت حساب‌ها'), subtitle: const Text('حساب محلی این دستگاه؛ ورود چندکاربره پس از اتصال سرور'), onTap: () => _notice('مدیریت حساب اینترنتی به سرویس احراز هویت نیاز دارد.')),
-      SwitchListTile(value: widget.isDark, onChanged: widget.onThemeChanged, secondary: const Icon(Icons.dark_mode_outlined), title: const Text('حالت تاریک')),
-      ListTile(leading: const Icon(Icons.settings_outlined), title: const Text('تنظیمات و حریم خصوصی'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()))),
-      const SizedBox(height: 12),
-      const Text('پست‌های من', style: TextStyle(fontWeight: FontWeight.bold)),
-      const SizedBox(height: 10),
-      if (ownPosts.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('هنوز پستی منتشر نکرده‌اید.'))),
-      if (ownPosts.isNotEmpty) GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: ownPosts.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 3, mainAxisSpacing: 3),
-        itemBuilder: (_, i) => ownPosts[i].isVideo
-          ? Container(color: Colors.black, child: const Icon(Icons.play_arrow, color: Colors.white))
-          : Image.file(File(ownPosts[i].mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
+      if (ownPosts.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 45), child: Column(children: [
+        Icon(Icons.camera_alt_outlined, size: 45, color: _igBlack), SizedBox(height: 10),
+        Text('هنوز پستی منتشر نکرده‌اید.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack)),
+      ])) else GridView.builder(
+        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: ownPosts.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+        itemBuilder: (_, i) => Stack(fit: StackFit.expand, children: [
+          ownPosts[i].isVideo ? Container(color: Colors.black, child: const Icon(Icons.play_arrow, color: Colors.white)) : Image.file(File(ownPosts[i].mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
+          if (ownPosts[i].isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 18)),
+        ]),
       ),
     ]);
   }
@@ -530,32 +551,39 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
-    const titles = ['IrShoGram', 'جستجو', 'دایرکت', 'ریلز', 'پروفایل'];
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     final pages = [_homePage(), _searchPage(), _messagesPage(), _reelsPage(), _profilePage()];
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text(titles[_tab], style: TextStyle(fontSize: _tab == 0 ? 27 : 20, fontWeight: FontWeight.w800, fontStyle: _tab == 0 ? FontStyle.italic : FontStyle.normal, letterSpacing: _tab == 0 ? -.8 : 0)),
+        title: Text(_tab == 0 ? 'IrShoGram' : (_tab == 4 ? _username : const ['IrShoGram', 'جستجو', 'دایرکت', 'ریلز', 'پروفایل'][_tab]),
+          style: TextStyle(fontSize: _tab == 0 ? 27 : 19, fontWeight: FontWeight.w800, fontStyle: _tab == 0 ? FontStyle.italic : FontStyle.normal, letterSpacing: _tab == 0 ? -.9 : 0, color: _igBlack)),
         centerTitle: true,
-        leading: _tab == 0 ? IconButton(tooltip: 'اعلان‌ها', onPressed: _showNotifications, icon: const Icon(Icons.favorite_border)) : null,
-        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: _createMenu, icon: const Icon(Icons.add, size: 30))] : null,
+        leading: _tab == 0 ? IconButton(tooltip: 'اعلان‌ها', onPressed: _showNotifications, icon: const Icon(Icons.favorite_border, color: _igBlack, size: 27)) : null,
+        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: _createMenu, icon: const Icon(Icons.add_box_outlined, size: 27, color: _igBlack))] : null,
       ),
       body: Directionality(textDirection: TextDirection.rtl, child: IndexedStack(index: _tab, children: pages)),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (index) => setState(() => _tab = index),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'خانه'),
-          NavigationDestination(icon: Icon(Icons.search), label: 'جستجو'),
-          NavigationDestination(icon: Icon(Icons.send_outlined), selectedIcon: Icon(Icons.send), label: 'دایرکت'),
-          NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'ریلز'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'پروفایل'),
-        ],
-      ),
+      bottomNavigationBar: SafeArea(top: false, child: Container(
+        height: 52,
+        decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: _igBorder, width: .7))),
+        child: Row(textDirection: TextDirection.ltr, mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
+          _navIcon(0, Icons.home_outlined, Icons.home_filled),
+          _navIcon(1, Icons.search, Icons.search),
+          _navIcon(2, Icons.send_outlined, Icons.send),
+          _navIcon(3, Icons.video_library_outlined, Icons.video_library),
+          _navIcon(4, Icons.person_outline, Icons.person),
+        ]),
+      )),
       floatingActionButton: _busy ? const FloatingActionButton(onPressed: null, child: CircularProgressIndicator()) : null,
     );
   }
+
+  Widget _navIcon(int index, IconData icon, IconData selectedIcon) => IconButton(
+    onPressed: () => setState(() => _tab = index),
+    tooltip: const ['خانه', 'جستجو', 'دایرکت', 'ریلز', 'پروفایل'][index],
+    icon: Icon(_tab == index ? selectedIcon : icon, size: 27, color: _igBlack),
+  );
+
 }
 
 class LocalVideo extends StatefulWidget {
