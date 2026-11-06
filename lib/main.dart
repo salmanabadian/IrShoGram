@@ -156,7 +156,7 @@ class _MainShellState extends State<MainShell> {
             ]),
           )),
         );
-      } else if (kind == 'story') {
+      } else if (kind == 'story' || kind == 'storyVideo') {
         final story = LocalStory(id: _store.newId(), username: _username, mediaPath: path, isVideo: isVideo, createdAt: now);
         setState(() => _stories.insert(0, story));
         await _store.saveStories(_stories);
