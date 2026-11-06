@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_underscores
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -131,6 +133,7 @@ class _MainShellState extends State<MainShell> {
       if (picked == null || !mounted) return;
       setState(() => _busy = true);
       final path = await _keepFile(picked);
+      if (!mounted) return;
       final now = DateTime.now();
       if (kind == 'post') {
         _captionController.clear();
@@ -429,13 +432,15 @@ class _MainShellState extends State<MainShell> {
 
   Widget _reelsPage() {
     final reels = _posts.where((p) => p.isVideo).toList();
-    if (reels.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    if (reels.isEmpty) {
+      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
       const Icon(Icons.video_collection_outlined, size: 62, color: Colors.grey),
       const SizedBox(height: 12),
       const Text('هنوز ریلزی وجود ندارد.'),
       const SizedBox(height: 12),
       FilledButton.icon(onPressed: () => _chooseMedia(kind: 'reel'), icon: const Icon(Icons.add), label: const Text('ساخت ریلز')),
-    ]));
+      ]));
+    }
     return PageView.builder(
       scrollDirection: Axis.vertical,
       itemCount: reels.length,
@@ -593,7 +598,7 @@ class _LocalVideoState extends State<LocalVideo> {
 
   @override
   Widget build(BuildContext context) {
-    if (_failed) return const ColoredBox(color: Colors.black, child: Center(child: Icon(Icons.broken_video_outlined, color: Colors.white, size: 48)));
+    if (_failed) return const ColoredBox(color: Colors.black, child: Center(child: Icon(Icons.videocam_off_outlined, color: Colors.white, size: 48)));
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return const ColoredBox(color: Colors.black, child: Center(child: CircularProgressIndicator(color: Colors.white)));
     return GestureDetector(
