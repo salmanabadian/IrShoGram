@@ -261,20 +261,22 @@ String _relativeTime(DateTime date) {
 }
 
 class OnlinePostComposer {
-  static Future<void> create(BuildContext context) async {
+  static Future<void> create(BuildContext context, {bool asReel = false}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final picker = ImagePicker();
-    final picked = await picker.pickMedia(imageQuality: 88, maxWidth: 2400);
+    final picked = asReel
+        ? await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(seconds: 90))
+        : await picker.pickMedia(imageQuality: 88, maxWidth: 2400);
     if (picked == null || !context.mounted) return;
-    final isVideo = picked.mimeType?.startsWith('video/') == true;
+    final isVideo = asReel || picked.mimeType?.startsWith('video/') == true;
     final caption = TextEditingController();
     final accepted = await showModalBottomSheet<bool>(
       context: context, isScrollControlled: true, showDragHandle: true,
       builder: (sheetContext) => Padding(
         padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(sheetContext).viewInsets.bottom + 20),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text('انتشار پست', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+          Text(asReel ? 'انتشار ریلز' : 'انتشار پست', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           if (!isVideo) ClipRRect(borderRadius: BorderRadius.circular(12),
             child: Image.file(File(picked.path), height: 200, fit: BoxFit.cover)),
@@ -282,7 +284,7 @@ class OnlinePostComposer {
           TextField(controller: caption, maxLength: 2200, maxLines: 3,
             decoration: const InputDecoration(hintText: 'برای این پست توضیحی بنویسید...', border: OutlineInputBorder())),
           const SizedBox(height: 12),
-          FilledButton(onPressed: () => Navigator.pop(sheetContext, true), child: const Text('انتشار')),
+          FilledButton(onPressed: () => Navigator.pop(sheetContext, true), child: Text(asReel ? 'انتشار ریلز' : 'انتشار')),
         ]),
       ),
     );
@@ -296,16 +298,19 @@ class OnlinePostComposer {
       final metadata = SettableMetadata(contentType: picked.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'));
       await storageRef.putFile(File(picked.path), metadata);
       final url = await storageRef.getDownloadURL();
-      final post = FirebaseFirestore.instance.collection('posts').doc();
+      final collection = FirebaseFirestore.instance.collection(asReel ? 'reels' : 'posts');
+      final post = collection.doc();
       await post.set({
         'authorId': user.uid,
         'caption': caption.text.trim(),
         'mediaUrl': url,
-        'mediaType': isVideo ? 'video' : 'image',
+        if (!asReel) 'mediaType': isVideo ? 'video' : 'image',
         'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        if (!asReel) 'updatedAt': FieldValue.serverTimestamp(),
       });
-      messenger.showSnackBar(const SnackBar(content: Text('پست با موفقیت در سرور منتشر شد.')));
+      messenger.showSnackBar(SnackBar(content: Text(asReel
+        ? 'ریلز با موفقیت در سرور منتشر شد.'
+        : 'پست با موفقیت در سرور منتشر شد.')));
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text('انتشار پست ناموفق بود: $error')));
     } finally {
@@ -462,6 +467,67 @@ class _OnlineStoryViewer extends StatelessWidget {
           ])),
         ]),
       )),
+    );
+  }
+}
+
+
+class OnlineReelsPage extends StatelessWidget {
+  const OnlineReelsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final reels = FirebaseFirestore.instance.collection('reels')
+        .orderBy('createdAt', descending: true).limit(50).snapshots();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: reels,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('بارگذاری ریلزها ناموفق بود: ${snapshot.error}'));
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.video_collection_outlined, size: 62, color: _muted),
+          const SizedBox(height: 12),
+          const Text('هنوز ریلزی منتشر نشده است.'),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: () => OnlinePostComposer.create(context, asReel: true),
+            icon: const Icon(Icons.add), label: const Text('ساخت ریلز'),
+          ),
+        ]));
+        return PageView.builder(
+          scrollDirection: Axis.vertical,
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data();
+            final uid = data['authorId'] as String? ?? '';
+            final url = data['mediaUrl'] as String? ?? '';
+            final caption = data['caption'] as String? ?? '';
+            return Stack(fit: StackFit.expand, children: [
+              if (url.isNotEmpty) _NetworkPostVideo(url: url)
+              else const ColoredBox(color: Colors.black),
+              const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.transparent, Colors.black87],
+              ))),
+              Positioned(left: 16, right: 16, bottom: 28, child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+                builder: (context, user) {
+                  final username = user.data?.data()?['username'] as String? ?? 'کاربر';
+                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('@$username', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    if (caption.isNotEmpty) Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(caption, style: const TextStyle(color: Colors.white)),
+                    ),
+                  ]);
+                },
+              )),
+              Positioned(top: 12, right: 12, child: Text('Reels', style: TextStyle(color: Colors.white.withValues(alpha: .9), fontSize: 18, fontWeight: FontWeight.bold))),
+            ]);
+          },
+        );
+      },
     );
   }
 }
