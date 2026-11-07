@@ -69,9 +69,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
 
   @override
   Future<void> unfollowUser(String currentUid, String targetUid) async {
-    await _db.runTransaction((transaction) async {
-      transaction.delete(_users.doc(currentUid).collection('following').doc(targetUid));
-    });
+    await _users.doc(currentUid).collection('following').doc(targetUid).delete();
   }
 
   @override
