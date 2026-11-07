@@ -363,7 +363,7 @@ class OnlineStoriesStrip extends StatelessWidget {
     );
   }
 
-  Future<void> _createStory(BuildContext context) async {
+  static Future<void> _createStory(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final picker = ImagePicker();
@@ -487,7 +487,7 @@ class OnlineReelsPage extends StatelessWidget {
         if (snapshot.hasError) return Center(child: Text('بارگذاری ریلزها ناموفق بود: ${snapshot.error}'));
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (docs.isEmpty) { return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.video_collection_outlined, size: 62, color: _muted),
           const SizedBox(height: 12),
           const Text('هنوز ریلزی منتشر نشده است.'),
@@ -496,7 +496,7 @@ class OnlineReelsPage extends StatelessWidget {
             onPressed: () => OnlinePostComposer.create(context, asReel: true),
             icon: const Icon(Icons.add), label: const Text('ساخت ریلز'),
           ),
-        ]));
+        ])); }
         return PageView.builder(
           scrollDirection: Axis.vertical,
           itemCount: docs.length,
