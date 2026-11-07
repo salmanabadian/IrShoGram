@@ -74,10 +74,21 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 26),
-                    const Icon(
-                      Icons.camera_alt_outlined,
-                      size: 58,
-                      color: Color(0xFF262626),
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [
+                          Color(0xFF7B2FF7),
+                          Color(0xFFE1306C),
+                          Color(0xFFFF9A3D),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ).createShader(bounds),
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        size: 62,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     const Text(
