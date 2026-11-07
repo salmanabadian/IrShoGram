@@ -63,12 +63,15 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
     if (!target.exists) throw StateError('The target user does not exist.');
     await _users.doc(currentUid).collection('following').doc(targetUid).set({
       'createdAt': FieldValue.serverTimestamp(),
+      'targetUid': targetUid,
     });
   }
 
   @override
   Future<void> unfollowUser(String currentUid, String targetUid) async {
-    await _users.doc(currentUid).collection('following').doc(targetUid).delete();
+    await _db.runTransaction((transaction) async {
+      transaction.delete(_users.doc(currentUid).collection('following').doc(targetUid));
+    });
   }
 
   @override
@@ -80,7 +83,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
   @override
   Future<int> followerCount(String uid) async {
     final result = await _db.collectionGroup('following')
-        .where(FieldPath.documentId, isEqualTo: uid)
+        .where('targetUid', isEqualTo: uid)
         .count()
         .get();
     return result.count ?? 0;
