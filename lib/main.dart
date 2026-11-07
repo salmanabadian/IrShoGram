@@ -57,12 +57,12 @@ class _IrShoGramAppState extends State<IrShoGramApp> {
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB65CDE), brightness: Brightness.dark),
     ),
-    home: firebaseError == null
+    home: widget.firebaseError == null
         ? AuthGate(child: MainShell(
       isDark: _mode == ThemeMode.dark,
       onThemeChanged: (dark) => setState(() => _mode = dark ? ThemeMode.dark : ThemeMode.light),
     ))
-        : FirebaseSetupRequiredScreen(error: firebaseError!),
+        : FirebaseSetupRequiredScreen(error: widget.firebaseError!),
   );
 }
 
