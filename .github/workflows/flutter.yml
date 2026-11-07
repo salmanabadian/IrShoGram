@@ -30,6 +30,34 @@ jobs:
         if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
         run: |
           echo "$FIREBASE_ANDROID_CONFIG_BASE64" | base64 --decode > android/app/google-services.json
+      - name: Validate Firebase Google Sign-In configuration
+        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("android/app/google-services.json").read_text())
+          clients = config.get("client", [])
+          matching = [
+              item for item in clients
+              if item.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              == "com.irshogram.app"
+          ]
+          if not matching:
+              raise SystemExit(
+                  "Firebase Android config does not contain package com.irshogram.app. "
+                  "Register this exact package in Firebase and replace the protected config secret."
+              )
+          oauth_clients = matching[0].get("oauth_client", [])
+          if not any(item.get("client_type") == 3 for item in oauth_clients):
+              raise SystemExit(
+                  "Firebase config has no Google Web OAuth client (client_type 3). "
+                  "Enable Google sign-in, configure the OAuth client, download a fresh "
+                  "google-services.json, and update the protected config secret."
+              )
+          print("Firebase Android package and Google Web OAuth client are present.")
+          PY
       - name: Build Android APK
         if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
         run: flutter build apk --release
