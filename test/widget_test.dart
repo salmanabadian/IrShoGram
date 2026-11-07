@@ -2,11 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:irshogram/main.dart';
 
+void _ignoreThemeChange(bool _) {}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('IrShoGram navigation renders', (tester) async {
-    await tester.pumpWidget(const IrShoGramApp());
+    await tester.pumpWidget(const MaterialApp(
+      home: MainShell(isDark: false, onThemeChanged: _ignoreThemeChange),
+    ));
     await tester.pumpAndSettle();
     expect(find.text('IrShoGram'), findsOneWidget);
     expect(find.text('هنوز پستی منتشر نشده است.'), findsOneWidget);
