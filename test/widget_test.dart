@@ -10,7 +10,7 @@ void main() {
 
   testWidgets('IrShoGram navigation renders', (tester) async {
     await tester.pumpWidget(const MaterialApp(
-      home: MainShell(isDark: false, onThemeChanged: _ignoreThemeChange),
+      home: MainShell(isDark: false, onThemeChanged: _ignoreThemeChange, useFirebase: false),
     ));
     await tester.pumpAndSettle();
     expect(find.text('IrShoGram'), findsOneWidget);
