@@ -3,13 +3,24 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'auth/auth_gate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'services/local_social_store.dart';
 
-void main() => runApp(const IrShoGramApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Object? firebaseError;
+  try {
+    await Firebase.initializeApp();
+  } catch (error) {
+    firebaseError = error;
+  }
+  runApp(IrShoGramApp(firebaseError: firebaseError));
+}
 
 const _purple = Color(0xFF0095F6);
 const _igBlack = Color(0xFF262626);
@@ -18,7 +29,8 @@ const _igBorder = Color(0xFFDBDBDB);
 const _people = <String>['ali.photo', 'mohammad', 'reza_daily', 'sara.art', 'amir', 'maryam'];
 
 class IrShoGramApp extends StatefulWidget {
-  const IrShoGramApp({super.key});
+  const IrShoGramApp({super.key, this.firebaseError});
+  final Object? firebaseError;
 
   @override
   State<IrShoGramApp> createState() => _IrShoGramAppState();
@@ -45,10 +57,12 @@ class _IrShoGramAppState extends State<IrShoGramApp> {
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB65CDE), brightness: Brightness.dark),
     ),
-    home: MainShell(
+    home: firebaseError == null
+        ? AuthGate(child: MainShell(
       isDark: _mode == ThemeMode.dark,
       onThemeChanged: (dark) => setState(() => _mode = dark ? ThemeMode.dark : ThemeMode.light),
-    ),
+    ))
+        : FirebaseSetupRequiredScreen(error: firebaseError!),
   );
 }
 
