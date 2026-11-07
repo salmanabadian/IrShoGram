@@ -378,7 +378,7 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _homePage() => Column(children: [
-    _storiesStrip(),
+    const OnlineStoriesStrip(),
     const Divider(height: 1, color: _igBorder),
     Expanded(child: OnlineFeedPage(
       onCreatePost: () => OnlinePostComposer.create(context),
