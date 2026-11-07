@@ -48,7 +48,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
     final result = await _users
         .orderBy('username')
         .startAt([normalized])
-        .endAt(['${normalized}\uf8ff'])
+        .endAt(['$normalized\uf8ff'])
         .limit(limit.clamp(1, 50).toInt())
         .get();
     return result.docs.map((doc) => UserProfile.fromMap(doc.data())).toList();
