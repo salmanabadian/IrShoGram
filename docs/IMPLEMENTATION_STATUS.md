@@ -11,7 +11,11 @@ Last updated: 2026-11-07
 - Added Firebase initialization before app startup and a visible setup-error screen if native Firebase configuration is unavailable.
 - Added a phone-number OTP sign-in screen with verification, resend support, and user-facing handling for common Firebase Auth errors.
 - Added an authenticated session gate and first-login Firestore profile creation.
-- Added a Firestore/Storage implementation of the existing social repository contracts for users, follows, posts, likes, saves, comments, notifications, stories, reels, conversations, messages, and media uploads.
+- Added a Firestore/Storage implementation of the social repository contracts for users, follows, posts, likes, saves, comments, notifications, stories, reels, conversations, messages, and media uploads.
+- Connected the home feed to live Firestore posts, including network image/video display, real likes, comments, and post deletion.
+- Connected photo/video post publishing and 24-hour story publishing to Firebase Storage and Firestore.
+- Connected the Stories strip/viewer and vertical Reels feed to live Firebase content.
+- Connected user search, follow/unfollow, profile editing, profile post grid/count, and Direct Messages to Firestore; direct messages update live across clients.
 - Added a validated target UID field to following documents so follower counts can be queried.
 - Added Firestore composite indexes for profile posts, active stories, and conversations.
 - Added protected Firebase config handling to CI. APK builds run only when the Actions secret is configured.
@@ -20,19 +24,19 @@ Last updated: 2026-11-07
 
 ## Not yet complete / acceptance blockers
 
-1. The UI still uses the device-local store for its current home/feed, stories, messages, profile, and likes. The new Firebase repository is not yet fully wired into every screen. Do not describe the whole app as online until this migration is completed.
+1. The home feed, post publishing, likes/comments, stories, reels viewing/publishing, user search/following, profile editing/post grid, and text direct messages now use Firebase. Remaining surfaces still using local or placeholder behavior include saved-post UI, parts of profile/settings, notifications, story viewer tracking/highlights/replies, message attachments/read receipts, and some explore/share/report actions.
 2. The private `android/app/google-services.json` file has not been installed in the local project or supplied to CI. It must match `com.irshogram.app`.
 3. Firebase Authentication → Phone provider must be enabled in the Firebase Console.
 4. Debug and release SHA-1/SHA-256 fingerprints must be registered.
 5. Firestore indexes and security rules must be deployed to the Firebase project.
 6. Real SMS delivery, account creation, media upload, and cross-device synchronization must be tested on a physical Android device.
-7. The first CI pass confirmed dependency resolution and a clean analyzer. The widget test initially expected visible navigation labels, but the app exposes these as accessibility tooltips; the test was corrected to assert those tooltips. A rerun is required. No successful APK build is claimed yet.
+7. The earlier foundation CI run passed dependency resolution, analysis, and widget tests. Subsequent online UI commits exposed analyzer findings; these are being fixed and the newest workflow run must pass before an APK can be claimed. No successful APK build is claimed yet.
 8. Production release signing, push notification delivery, reporting/blocking, privacy controls, moderation, media processing, and broader Instagram-like surfaces remain future work.
 
 ## Immediate next engineering work
 
 - Run CI and fix every analyzer/test/build failure.
-- Connect feed, profile, story, reel, comment, like/save, and direct-message screens to the Firebase repository and Storage instead of local-only persistence.
+- Finish saved posts, notifications, story viewer tracking/replies/highlights, message attachments/read receipts, account switching, and settings/privacy actions.
 - Add proper pagination, media compression/transcoding, upload progress/retry, thumbnails, and lifecycle cleanup.
 - Add Cloud Functions or another trusted backend for notification fan-out, follower denormalization if needed, moderation, and cleanup of expired media.
 - Add account switching and complete privacy/security settings.
