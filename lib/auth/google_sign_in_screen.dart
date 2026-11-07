@@ -10,8 +10,11 @@ class GoogleSignInScreen extends StatefulWidget {
 }
 
 class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
-  final Future<void> _googleInitialization =
-      GoogleSignIn.instance.initialize();
+  static const String _serverClientId =
+      String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+  final Future<void> _googleInitialization = GoogleSignIn.instance.initialize(
+    serverClientId: _serverClientId.isEmpty ? null : _serverClientId,
+  );
   bool _busy = false;
   String? _error;
 
@@ -73,7 +76,7 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = '${_firebaseErrorMessage(error)}\\nکد فنی: ${error.code}';
+        _error = '${_firebaseErrorMessage(error)}\nکد فنی: ${error.code}';
       });
     } on GoogleSignInException catch (error) {
       if (!mounted) return;
@@ -81,13 +84,13 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
         _busy = false;
         final description = error.description?.trim();
         _error = 'خطای واقعی Google Sign-In: ${error.code.name}'
-            '${description == null || description.isEmpty ? '' : '\\nتوضیح: $description'}';
+            '${description == null || description.isEmpty ? '' : '\nتوضیح: $description'}';
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = '${_googleErrorMessage(error)}\\nجزئیات فنی: ${error.runtimeType}: $error';
+        _error = '${_googleErrorMessage(error)}\nجزئیات فنی: ${error.runtimeType}: $error';
       });
     }
   }
