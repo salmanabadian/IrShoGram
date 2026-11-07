@@ -53,7 +53,11 @@ class _AuthGateState extends State<AuthGate> {
           if (profile.hasError) {
             return Scaffold(body: Center(child: Padding(
               padding: const EdgeInsets.all(28),
-              child: Text('ساخت پروفایل در Firebase انجام نشد. اتصال اینترنت و قوانین Firestore را بررسی کنید.\n${profile.error}', textAlign: TextAlign.center),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('ساخت پروفایل در Firebase انجام نشد. اتصال اینترنت و قوانین Firestore را بررسی کنید.\n${profile.error}', textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                TextButton(onPressed: () => setState(() { _profileUid = null; _profileFuture = null; }), child: const Text('تلاش دوباره')),
+              ]),
             )));
           }
           if (profile.connectionState != ConnectionState.done) {
