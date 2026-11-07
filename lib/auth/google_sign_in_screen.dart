@@ -73,13 +73,21 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = _firebaseErrorMessage(error);
+        _error = '${_firebaseErrorMessage(error)}\\nکد فنی: ${error.code}';
+      });
+    } on GoogleSignInException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        final description = error.description?.trim();
+        _error = 'خطای واقعی Google Sign-In: ${error.code.name}'
+            '${description == null || description.isEmpty ? '' : '\\nتوضیح: $description'}';
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = _googleErrorMessage(error);
+        _error = '${_googleErrorMessage(error)}\\nجزئیات فنی: ${error.runtimeType}: $error';
       });
     }
   }
