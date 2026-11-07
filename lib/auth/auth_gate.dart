@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'phone_sign_in_screen.dart';
+import 'google_sign_in_screen.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key, required this.child});
@@ -41,7 +41,7 @@ class _AuthGateState extends State<AuthGate> {
       if (user == null) {
         _profileUid = null;
         _profileFuture = null;
-        return const PhoneSignInScreen();
+        return const GoogleSignInScreen();
       }
       if (_profileUid != user.uid) {
         _profileUid = user.uid;
@@ -84,7 +84,7 @@ class FirebaseSetupRequiredScreen extends StatelessWidget {
         const SizedBox(height: 18),
         const Text('اتصال Firebase کامل نشده است', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
         const SizedBox(height: 10),
-        const Text('فایل تنظیمات Android با شناسه com.irshogram.app باید در مسیر android/app/google-services.json قرار بگیرد و ورود با Phone در Firebase فعال باشد.', textAlign: TextAlign.center),
+        const Text('فایل تنظیمات Android با شناسه com.irshogram.app باید در مسیر android/app/google-services.json قرار بگیرد و ارائه‌دهنده Google در Firebase فعال باشد.', textAlign: TextAlign.center),
         const SizedBox(height: 12),
         Text(error.toString(), style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
       ]),
