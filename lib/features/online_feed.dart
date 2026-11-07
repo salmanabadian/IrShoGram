@@ -311,3 +311,155 @@ class OnlinePostComposer {
     }
   }
 }
+
+
+class OnlineStoriesStrip extends StatelessWidget {
+  const OnlineStoriesStrip({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final stories = FirebaseFirestore.instance.collection('stories')
+        .where('expiresAt', isGreaterThan: Timestamp.now())
+        .orderBy('expiresAt').orderBy('createdAt', descending: true).limit(50).snapshots();
+    return SizedBox(
+      height: 112,
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: stories,
+        builder: (context, snapshot) {
+          final docs = snapshot.data?.docs ?? [];
+          return ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            children: [
+              GestureDetector(
+                onTap: () => _createStory(context),
+                child: SizedBox(width: 76, child: Column(children: [
+                  Stack(children: [
+                    const CircleAvatar(radius: 28, backgroundColor: Color(0xFFEFEFEF),
+                      child: Icon(Icons.person, color: _muted, size: 30)),
+                    const Positioned(right: 0, bottom: 0,
+                      child: CircleAvatar(radius: 10, backgroundColor: _blue,
+                        child: Icon(Icons.add, size: 15, color: Colors.white))),
+                  ]),
+                  const SizedBox(height: 5),
+                  const Text('داستان شما', style: TextStyle(fontSize: 11)),
+                ])),
+              ),
+              for (final doc in docs)
+                _OnlineStoryAvatar(story: doc),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _createStory(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickMedia(imageQuality: 88, maxWidth: 1920);
+    if (picked == null || !context.mounted) return;
+    final isVideo = picked.mimeType?.startsWith('video/') == true;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('در حال بارگذاری استوری...')));
+    try {
+      final ext = picked.name.contains('.') ? picked.name.split('.').last.toLowerCase() : (isVideo ? 'mp4' : 'jpg');
+      final storagePath = 'stories/${user.uid}/${const Uuid().v4()}.$ext';
+      final ref = FirebaseStorage.instance.ref().child(storagePath);
+      await ref.putFile(File(picked.path), SettableMetadata(
+        contentType: picked.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
+      ));
+      final url = await ref.getDownloadURL();
+      await FirebaseFirestore.instance.collection('stories').add({
+        'authorId': user.uid,
+        'mediaUrl': url,
+        'mediaType': isVideo ? 'video' : 'image',
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime.now().add(const Duration(hours: 24))),
+      });
+      messenger.showSnackBar(const SnackBar(content: Text('استوری برای ۲۴ ساعت منتشر شد.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('انتشار استوری ناموفق بود: $error')));
+    }
+  }
+}
+
+class _OnlineStoryAvatar extends StatelessWidget {
+  const _OnlineStoryAvatar({required this.story});
+  final QueryDocumentSnapshot<Map<String, dynamic>> story;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = story.data()['authorId'] as String? ?? '';
+    final user = FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: user,
+      builder: (context, snapshot) {
+        final username = snapshot.data?.data()?['username'] as String? ?? 'کاربر';
+        return GestureDetector(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _OnlineStoryViewer(story: story, username: username),
+          )),
+          child: SizedBox(width: 76, child: Column(children: [
+            Container(
+              padding: const EdgeInsets.all(2.5),
+              decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(
+                colors: [Color(0xFF8134AF), Color(0xFFE1306C), Color(0xFFFCAF45)],
+              )),
+              child: CircleAvatar(radius: 27, backgroundColor: const Color(0xFFEAF5FF),
+                child: Text(username.isEmpty ? '?' : username[0].toUpperCase(),
+                  style: const TextStyle(color: _blue, fontWeight: FontWeight.bold))),
+            ),
+            const SizedBox(height: 5),
+            Text(username, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11)),
+          ])),
+        );
+      },
+    );
+  }
+}
+
+class _OnlineStoryViewer extends StatelessWidget {
+  const _OnlineStoryViewer({required this.story, required this.username});
+  final QueryDocumentSnapshot<Map<String, dynamic>> story;
+  final String username;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = story.data();
+    final url = data['mediaUrl'] as String? ?? '';
+    final isVideo = data['mediaType'] == 'video';
+    final own = data['authorId'] == FirebaseAuth.instance.currentUser?.uid;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(child: GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Stack(fit: StackFit.expand, children: [
+          if (isVideo) _NetworkPostVideo(url: url)
+          else Image.network(url, fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image, color: Colors.white))),
+          Positioned(top: 12, left: 12, right: 12, child: Container(height: 3,
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)))),
+          Positioned(top: 28, right: 14, child: Row(children: [
+            const CircleAvatar(radius: 17, child: Icon(Icons.person, size: 18)),
+            const SizedBox(width: 8),
+            Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ])),
+          Positioned(top: 22, left: 10, child: Row(children: [
+            if (own) IconButton(
+              onPressed: () async {
+                await FirebaseFirestore.instance.collection('stories').doc(story.id).delete();
+                if (context.mounted) Navigator.pop(context);
+              },
+              icon: const Icon(Icons.delete_outline, color: Colors.white),
+            ),
+            IconButton(onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.close, color: Colors.white)),
+          ])),
+        ]),
+      )),
+    );
+  }
+}
