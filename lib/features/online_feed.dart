@@ -533,3 +533,182 @@ class OnlineReelsPage extends StatelessWidget {
     );
   }
 }
+
+
+class OnlineMessagesPage extends StatelessWidget {
+  const OnlineMessagesPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final conversations = FirebaseFirestore.instance.collection('conversations')
+        .where('participantIds', arrayContains: uid)
+        .orderBy('updatedAt', descending: true).snapshots();
+    return Column(children: [
+      const Padding(
+        padding: EdgeInsets.fromLTRB(16, 12, 16, 10),
+        child: Align(alignment: Alignment.centerRight,
+          child: Text('پیام‌ها', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _ink))),
+      ),
+      Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: conversations,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) return Center(child: Text('بارگذاری پیام‌ها ناموفق بود: ${snapshot.error}'));
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.send_outlined, size: 58, color: _ink),
+            SizedBox(height: 12),
+            Text('پیام‌هایت را ارسال کن', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            SizedBox(height: 6),
+            Text('برای شروع گفتگو، یک حساب را از بخش جستجو انتخاب کن.', style: TextStyle(color: _muted)),
+          ]));
+          return ListView(children: docs.map((doc) {
+            final participants = List<String>.from(doc.data()['participantIds'] as List? ?? const []);
+            final otherUid = participants.firstWhere((id) => id != uid, orElse: () => '');
+            return _ConversationTile(conversationId: doc.id, otherUid: otherUid);
+          }).toList());
+        },
+      )),
+    ]);
+  }
+}
+
+class _ConversationTile extends StatelessWidget {
+  const _ConversationTile({required this.conversationId, required this.otherUid});
+  final String conversationId;
+  final String otherUid;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseFirestore.instance.collection('users').doc(otherUid).get();
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: user,
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() ?? {};
+        final username = data['username'] as String? ?? 'کاربر';
+        return ListTile(
+          leading: CircleAvatar(backgroundColor: const Color(0xFFEAF5FF),
+            child: Text(username.isEmpty ? '?' : username[0].toUpperCase(), style: const TextStyle(color: _blue))),
+          title: Text(username, style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: const Text('برای مشاهده پیام‌ها وارد گفتگو شوید.', style: TextStyle(color: _muted)),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => OnlineChatPage(conversationId: conversationId, peerName: username),
+          )),
+        );
+      },
+    );
+  }
+}
+
+class OnlineChatPage extends StatefulWidget {
+  const OnlineChatPage({super.key, required this.conversationId, required this.peerName});
+  final String conversationId;
+  final String peerName;
+
+  static Future<void> open(BuildContext context, String otherUid, String peerName) async {
+    final currentUid = FirebaseAuth.instance.currentUser!.uid;
+    if (otherUid == currentUid) return;
+    final ids = [currentUid, otherUid]..sort();
+    final id = ids.join('_');
+    final ref = FirebaseFirestore.instance.collection('conversations').doc(id);
+    final existing = await ref.get();
+    if (!existing.exists) {
+      await ref.set({
+        'participantIds': ids,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    if (!context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => OnlineChatPage(conversationId: id, peerName: peerName),
+    ));
+  }
+
+  @override
+  State<OnlineChatPage> createState() => _OnlineChatPageState();
+}
+
+class _OnlineChatPageState extends State<OnlineChatPage> {
+  final _controller = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() { _controller.dispose(); super.dispose(); }
+
+  Future<void> _send() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final conversation = FirebaseFirestore.instance.collection('conversations').doc(widget.conversationId);
+      await conversation.collection('messages').add({
+        'senderId': uid,
+        'text': text,
+        'mediaUrl': null,
+        'createdAt': FieldValue.serverTimestamp(),
+        'type': 'text',
+      });
+      await conversation.update({'updatedAt': FieldValue.serverTimestamp()});
+      _controller.clear();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ارسال پیام ناموفق بود: $error')));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final messages = FirebaseFirestore.instance.collection('conversations')
+        .doc(widget.conversationId).collection('messages')
+        .orderBy('createdAt', descending: true).limit(100).snapshots();
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.peerName)),
+      body: Column(children: [
+        Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: messages,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) return Center(child: Text('دریافت پیام‌ها ناموفق بود: ${snapshot.error}'));
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            final docs = snapshot.data!.docs;
+            if (docs.isEmpty) return const Center(child: Text('هنوز پیامی وجود ندارد. اولین پیام را بفرستید.'));
+            return ListView.builder(
+              reverse: true, padding: const EdgeInsets.all(14), itemCount: docs.length,
+              itemBuilder: (context, index) {
+                final data = docs[index].data();
+                final mine = data['senderId'] == uid;
+                return Align(
+                  alignment: mine ? Alignment.centerLeft : Alignment.centerRight,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(maxWidth: 290),
+                    decoration: BoxDecoration(
+                      color: mine ? const Color(0xFFE4F1FF) : const Color(0xFFEFEFEF),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(data['text'] as String? ?? ''),
+                  ),
+                );
+              },
+            );
+          },
+        )),
+        SafeArea(child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(children: [
+            Expanded(child: TextField(controller: _controller, maxLength: 5000,
+              decoration: const InputDecoration(counterText: '', hintText: 'پیام بنویسید...', border: OutlineInputBorder()),
+              onSubmitted: (_) => _send())),
+            IconButton(onPressed: _sending ? null : _send,
+              icon: _sending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send)),
+          ]),
+        )),
+      ]),
+    );
+  }
+}
