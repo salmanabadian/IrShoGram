@@ -551,15 +551,15 @@ class _MainShellState extends State<MainShell> {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: posts,
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const Padding(
-          padding: EdgeInsets.all(24), child: Text('بارگذاری پست‌های پروفایل ناموفق بود.', textAlign: TextAlign.center));
-        if (!snapshot.hasData) return const Padding(
-          padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()));
+        if (snapshot.hasError) { return const Padding(
+          padding: EdgeInsets.all(24), child: Text('بارگذاری پست‌های پروفایل ناموفق بود.', textAlign: TextAlign.center)); }
+        if (!snapshot.hasData) { return const Padding(
+          padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())); }
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 45), child: Column(children: [
+        if (docs.isEmpty) { return const Padding(padding: EdgeInsets.symmetric(vertical: 45), child: Column(children: [
           Icon(Icons.camera_alt_outlined, size: 45, color: _igBlack), SizedBox(height: 10),
           Text('هنوز پستی منتشر نکرده‌اید.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack)),
-        ]));
+        ])); }
         return GridView.builder(
           shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: docs.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
