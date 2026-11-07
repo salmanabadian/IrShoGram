@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'auth/auth_gate.dart';
+import 'features/online_feed.dart';
 import 'services/local_social_store.dart';
 
 Future<void> main() async {
@@ -223,7 +224,7 @@ class _MainShellState extends State<MainShell> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('ایجاد محتوای جدید', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'post'); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); OnlinePostComposer.create(context); }),
           ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'story'); }),
           ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_camera_back_outlined), title: const Text('استوری ویدیویی'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'storyVideo'); }),
           ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'reel'); }),
@@ -376,20 +377,12 @@ class _MainShellState extends State<MainShell> {
     ]);
   }
 
-  Widget _homePage() => ListView(padding: const EdgeInsets.only(bottom: 12), children: [
+  Widget _homePage() => Column(children: [
     _storiesStrip(),
     const Divider(height: 1, color: _igBorder),
-    if (_posts.isEmpty) ...[
-      const SizedBox(height: 70), const Icon(Icons.photo_library_outlined, size: 54, color: _igGrey),
-      const SizedBox(height: 14),
-      const Center(child: Text('هنوز پستی منتشر نشده است.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack))),
-      const SizedBox(height: 6),
-      const Center(child: Text('اولین عکس یا ویدیوی خود را به اشتراک بگذارید.', style: TextStyle(color: _igGrey))),
-      const SizedBox(height: 16),
-      Center(child: TextButton(onPressed: _createMenu, child: const Text('ایجاد پست'))),
-    ] else ...[
-      for (final post in _posts) _postCard(post),
-    ],
+    Expanded(child: OnlineFeedPage(
+      onCreatePost: () => OnlinePostComposer.create(context),
+    )),
   ]);
 
   Widget _searchPage() {
@@ -587,7 +580,7 @@ class _MainShellState extends State<MainShell> {
           style: TextStyle(fontSize: _tab == 0 ? 27 : 19, fontWeight: FontWeight.w800, fontStyle: _tab == 0 ? FontStyle.italic : FontStyle.normal, letterSpacing: _tab == 0 ? -.9 : 0, color: _igBlack)),
         centerTitle: true,
         leading: _tab == 0 ? IconButton(tooltip: 'اعلان‌ها', onPressed: _showNotifications, icon: const Icon(Icons.favorite_border, color: _igBlack, size: 27)) : null,
-        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: _createMenu, icon: const Icon(Icons.add_box_outlined, size: 27, color: _igBlack))] : null,
+        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: () => OnlinePostComposer.create(context), icon: const Icon(Icons.add, size: 29, color: _igBlack))] : null,
       ),
       body: Directionality(textDirection: TextDirection.rtl, child: IndexedStack(index: _tab, children: pages)),
       bottomNavigationBar: SafeArea(top: false, child: Container(
