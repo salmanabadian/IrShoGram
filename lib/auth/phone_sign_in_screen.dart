@@ -68,7 +68,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         _busy = false;
         _error = message.contains('canceled') || message.contains('cancelled')
             ? 'ورود با Google لغو شد.'
-            : 'ورود با Google انجام نشد. تنظیمات Google در Firebase و اثرانگشت SHA را بررسی کنید.';
+            : 'خطای Google: $e';
       });
     }
   }
