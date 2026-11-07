@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'auth/auth_gate.dart';
 import 'features/online_feed.dart';
@@ -156,7 +157,7 @@ class _MainShellState extends State<MainShell> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _loadError = 'بارگذاری اطلاعات حساب از Firebase انجام نشد. اتصال اینترنت و دسترسی Firestore را بررسی کنید.\n$error';
+        _loadError = 'بارگذاری اطلاعات حساب از Firebase انجام نشد. اتصال اینترنت و دسترسی Firestore را بررسی کنید و دوباره تلاش کنید.';
         _loading = false;
       });
     }
@@ -845,7 +846,11 @@ class SettingsPage extends StatelessWidget {
     );
     if (confirmed != true) return;
     try {
-      await FirebaseAuth.instance.signOut();
+      try {
+        await GoogleSignIn.instance.signOut();
+      } finally {
+        await FirebaseAuth.instance.signOut();
+      }
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
