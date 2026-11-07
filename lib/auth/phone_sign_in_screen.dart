@@ -69,9 +69,9 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         codeAutoRetrievalTimeout: (id) => _verificationId = id,
       );
     } on FirebaseAuthException catch (e) {
-      if (mounted) setState(() { _busy = false; _error = _message(e); });
+      if (mounted) { setState(() { _busy = false; _error = _message(e); }); }
     } catch (_) {
-      if (mounted) setState(() { _busy = false; _error = 'ارسال کد انجام نشد. اتصال اینترنت را بررسی کنید.'; });
+      if (mounted) { setState(() { _busy = false; _error = 'ارسال کد انجام نشد. اتصال اینترنت را بررسی کنید.'; }); }
     }
   }
 
@@ -89,7 +89,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
     } on FirebaseAuthException catch (e) {
       if (mounted) setState(() { _busy = false; _error = _message(e); });
     } catch (_) {
-      if (mounted) setState(() { _busy = false; _error = 'تأیید کد انجام نشد. دوباره تلاش کنید.'; });
+      if (mounted) { setState(() { _busy = false; _error = 'تأیید کد انجام نشد. دوباره تلاش کنید.'; }); }
     }
   }
 
