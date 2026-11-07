@@ -476,7 +476,6 @@ class _MainShellState extends State<MainShell> {
   Widget _reelsPage() => const OnlineReelsPage();
 
   Widget _profilePage() {
-    final ownPosts = _posts.where((p) => p.username == _username).toList();
     final saved = _posts.where((p) => p.savedByMe).toList();
     return ListView(padding: EdgeInsets.zero, children: [
       Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 12), child: Row(children: [
@@ -498,7 +497,7 @@ class _MainShellState extends State<MainShell> {
       Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Row(children: [
         _avatar(_username, radius: 42), const SizedBox(width: 25),
         Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          _stat(ownPosts.length.toString(), 'پست'), _stat('—', 'دنبال‌کننده'), _stat(_following.length.toString(), 'دنبال‌شونده'),
+          _profilePostCount(), _followerCount(), _stat(_following.length.toString(), 'دنبال‌شونده'),
         ])),
       ])),
       Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -522,18 +521,61 @@ class _MainShellState extends State<MainShell> {
         Padding(padding: EdgeInsets.symmetric(vertical: 11), child: Icon(Icons.video_library_outlined, color: _igGrey, size: 23)),
         Padding(padding: EdgeInsets.symmetric(vertical: 11), child: Icon(Icons.person_pin_outlined, color: _igGrey, size: 23)),
       ]),
-      if (ownPosts.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 45), child: Column(children: [
-        Icon(Icons.camera_alt_outlined, size: 45, color: _igBlack), SizedBox(height: 10),
-        Text('هنوز پستی منتشر نکرده‌اید.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack)),
-      ])) else GridView.builder(
-        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: ownPosts.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
-        itemBuilder: (_, i) => Stack(fit: StackFit.expand, children: [
-          ownPosts[i].isVideo ? Container(color: Colors.black, child: const Icon(Icons.play_arrow, color: Colors.white)) : Image.file(File(ownPosts[i].mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
-          if (ownPosts[i].isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 18)),
-        ]),
-      ),
+      _onlineProfilePostsGrid(),
     ]);
+  }
+
+  Widget _profilePostCount() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final query = FirebaseFirestore.instance.collection('posts').where('authorId', isEqualTo: uid).snapshots();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query,
+      builder: (context, snapshot) => _stat((snapshot.data?.docs.length ?? 0).toString(), 'پست'),
+    );
+  }
+
+  Widget _followerCount() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final count = FirebaseFirestore.instance.collectionGroup('following')
+        .where('targetUid', isEqualTo: uid).count().get();
+    return FutureBuilder<AggregateQuerySnapshot>(
+      future: count,
+      builder: (context, snapshot) => _stat((snapshot.data?.count ?? 0).toString(), 'دنبال‌کننده'),
+    );
+  }
+
+  Widget _onlineProfilePostsGrid() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final posts = FirebaseFirestore.instance.collection('posts')
+        .where('authorId', isEqualTo: uid).orderBy('createdAt', descending: true).snapshots();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: posts,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const Padding(
+          padding: EdgeInsets.all(24), child: Text('بارگذاری پست‌های پروفایل ناموفق بود.', textAlign: TextAlign.center));
+        if (!snapshot.hasData) return const Padding(
+          padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()));
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) return const Padding(padding: EdgeInsets.symmetric(vertical: 45), child: Column(children: [
+          Icon(Icons.camera_alt_outlined, size: 45, color: _igBlack), SizedBox(height: 10),
+          Text('هنوز پستی منتشر نکرده‌اید.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack)),
+        ]));
+        return GridView.builder(
+          shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: docs.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+          itemBuilder: (_, i) {
+            final data = docs[i].data();
+            final isVideo = data['mediaType'] == 'video';
+            final url = data['mediaUrl'] as String? ?? '';
+            return Stack(fit: StackFit.expand, children: [
+              if (isVideo) const ColoredBox(color: Colors.black, child: Center(child: Icon(Icons.play_arrow, color: Colors.white, size: 30)))
+              else Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
+              if (isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 18)),
+            ]);
+          },
+        );
+      },
+    );
   }
 
   Widget _stat(String number, String label) => Column(children: [Text(number, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Text(label, style: const TextStyle(fontSize: 12))]);
