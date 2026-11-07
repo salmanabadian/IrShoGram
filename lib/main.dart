@@ -451,7 +451,7 @@ class _MainShellState extends State<MainShell> {
                         } else {
                           await ref.set({'createdAt': FieldValue.serverTimestamp(), 'targetUid': doc.id});
                         }
-                        if (mounted) setState(() => following ? _following.remove(doc.id) : _following.add(doc.id));
+                        if (mounted) setState(() { if (following) { _following.remove(doc.id); } else { _following.add(doc.id); } });
                       } catch (error) { _notice('تغییر دنبال‌کردن انجام نشد: $error'); }
                     },
                     child: Text(following ? 'دنبال می‌کنید' : 'دنبال کردن'),
