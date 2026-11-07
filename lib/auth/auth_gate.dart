@@ -3,9 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'phone_sign_in_screen.dart';
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key, required this.child});
   final Widget child;
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  String? _profileUid;
+  Future<void>? _profileFuture;
 
   Future<void> _ensureProfile(User user) async {
     final reference = FirebaseFirestore.instance.collection('users').doc(user.uid);
@@ -30,9 +38,17 @@ class AuthGate extends StatelessWidget {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       final user = auth.data;
-      if (user == null) return const PhoneSignInScreen();
+      if (user == null) {
+        _profileUid = null;
+        _profileFuture = null;
+        return const PhoneSignInScreen();
+      }
+      if (_profileUid != user.uid) {
+        _profileUid = user.uid;
+        _profileFuture = _ensureProfile(user);
+      }
       return FutureBuilder<void>(
-        future: _ensureProfile(user),
+        future: _profileFuture,
         builder: (context, profile) {
           if (profile.hasError) {
             return Scaffold(body: Center(child: Padding(
@@ -43,7 +59,7 @@ class AuthGate extends StatelessWidget {
           if (profile.connectionState != ConnectionState.done) {
             return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
-          return child;
+          return widget.child;
         },
       );
     },
