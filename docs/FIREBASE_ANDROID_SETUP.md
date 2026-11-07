@@ -2,29 +2,32 @@
 
 ## Registered Android application
 
-The Android Gradle namespace and application ID are both:
+The Android Gradle namespace and application ID are both `com.irshogram.app`.
+The Firebase Android app's `google-services.json` must use this exact package name
+and be placed at `android/app/google-services.json`. This private file is excluded
+from Git and must never be committed or pasted into chat.
 
-`com.irshogram.app`
+## Google-only authentication
 
-The Firebase Android app's `google-services.json` must have this exact package name. Place the downloaded file at:
+The current authentication flow uses Google Sign-In with Firebase Authentication.
+Phone-number authentication is intentionally out of scope and must not be enabled
+or referenced by the app's current sign-in flow.
 
-`android/app/google-services.json`
+In Firebase Console:
 
-Do not rename it to `google-services (1).json`. The file is intentionally excluded from public source control.
-
-## Firebase Console checklist
-
-1. Open Firebase Console and select the IrShoGram project.
-2. In Authentication → Sign-in method, enable **Phone** and **Google**. For Google, complete the provider support email selection and save the provider.
-3. Confirm the Android app registered in Project settings uses `com.irshogram.app`.
-4. Add the debug and release SHA-1 and SHA-256 fingerprints for the signing certificates used by the app. Google Sign-In on Android depends on the matching SHA fingerprints and OAuth client configuration. After changing fingerprints, download a fresh `google-services.json` and replace the local file.
-5. Confirm the Firestore database and Storage bucket exist.
-6. Deploy `firestore.rules`, `storage.rules`, and `firestore.indexes.json` from this repository.
-7. Test phone verification on a physical Android device. Use Firebase test phone numbers during development to avoid repeated SMS quota use.
+1. Open the IrShoGram Firebase project.
+2. Go to Authentication → Sign-in method and enable **Google** only for the
+   current app flow. Select a support email and save.
+3. Confirm the registered Android app package is `com.irshogram.app`.
+4. Register the debug and release SHA-1 and SHA-256 signing fingerprints.
+   Google Sign-In depends on matching fingerprints and OAuth client configuration.
+5. Download a fresh `google-services.json` after changing fingerprints and use it
+   for local or CI builds.
+6. Confirm Firestore and Cloud Storage are enabled.
 
 ## Local build
 
-After placing the config file at the path above:
+After placing the correct configuration file:
 
 ```bash
 flutter pub get
@@ -33,29 +36,31 @@ flutter test
 flutter build apk --release
 ```
 
-The first release build currently uses the Android debug signing configuration. It is suitable for controlled installation/testing, not a production store release. A private release keystore and signing configuration must be added before publishing.
+The current Gradle release build uses debug signing. It can be used for controlled
+testing but is not a production-store signing configuration. Add a private release
+keystore and protected signing configuration before distribution.
 
-## GitHub Actions APK builds
+## GitHub Actions
 
-The workflow can restore the config file from a protected repository Actions secret named:
+The workflow restores the private Android Firebase configuration from the repository
+Actions secret `FIREBASE_ANDROID_CONFIG_BASE64`. The secret must contain the
+Base64-encoded contents of the exact `google-services.json` file.
 
-`FIREBASE_ANDROID_CONFIG_BASE64`
+Never put the raw JSON, OAuth credentials, API keys, or signing material in source
+control, issues, or chat. When the secret is unavailable, CI can still run analysis
+and tests but intentionally skips the Firebase-configured APK build.
 
-Create the secret with the Base64-encoded contents of the exact `google-services.json` file. For example, on Linux/macOS:
+## Firebase backend deployment
 
-```bash
-base64 -w 0 android/app/google-services.json
-```
+The repository contains Firestore rules, Storage rules, and composite indexes.
+Their presence in Git does not prove that they are deployed. Review them against
+the final data model, deploy to a non-production Firebase project first, and run
+Firestore/Storage emulator security tests before production use.
 
-Copy the output into the repository's Settings → Secrets and variables → Actions → New repository secret. Never paste the raw JSON or its API key into source files, issues, or chat messages. If this secret is absent, CI still runs dependency resolution, analysis, and tests, but intentionally skips the Firebase-configured APK build.
+## Device acceptance checklist
 
-## Phone-auth limitations
-
-Phone OTP delivery depends on Firebase project settings, allowed regions, quotas, billing/risk controls, and valid signing fingerprints. A successful code compile does not prove that real SMS delivery works. The first physical-device login is a required acceptance test.
-
-8. Link the Firebase project to a Cloud Billing account before relying on SMS delivery. Firebase's no-cost SMS allowance on the Spark plan was discontinued for Phone Authentication in September 2024.
-9. Configure the Authentication SMS region policy explicitly. New projects may default to allowing no regions; only allow the countries where your users actually need SMS delivery.
-
-## Important note for +98 (Iran) phone numbers
-
-Firebase says phone verification is supported globally, but its published list of regions with good expected delivery rates does not include Iran. That does not prove every Iranian carrier will fail, but it means delivery to +98 cannot be promised and must be tested with the actual carrier. Keep an alternate sign-in/recovery path available if the app is intended for users in Iran.
+- Sign in with a real Google account on a physical Android device.
+- Confirm Firebase creates exactly one account identity and a user profile.
+- Confirm the session survives app restart and sign-out returns to the Google sign-in screen.
+- Verify profile data and media uploads sync across two devices.
+- Confirm network failures and provider/configuration errors are shown safely.
