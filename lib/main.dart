@@ -15,13 +15,17 @@ import 'auth/auth_gate.dart';
 import 'features/online_feed.dart';
 import 'services/local_social_store.dart';
 
+const _previewMode = bool.fromEnvironment('IRSHOGRAM_PREVIEW', defaultValue: false);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Object? firebaseError;
-  try {
-    await Firebase.initializeApp();
-  } catch (error) {
-    firebaseError = error;
+  if (!_previewMode) {
+    try {
+      await Firebase.initializeApp();
+    } catch (error) {
+      firebaseError = error;
+    }
   }
   runApp(IrShoGramApp(firebaseError: firebaseError));
 }
@@ -61,12 +65,18 @@ class _IrShoGramAppState extends State<IrShoGramApp> {
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB65CDE), brightness: Brightness.dark),
     ),
-    home: widget.firebaseError == null
-        ? AuthGate(child: MainShell(
-      isDark: _mode == ThemeMode.dark,
-      onThemeChanged: (dark) => setState(() => _mode = dark ? ThemeMode.dark : ThemeMode.light),
-    ))
-        : FirebaseSetupRequiredScreen(error: widget.firebaseError!),
+    home: _previewMode
+        ? MainShell(
+            useFirebase: false,
+            isDark: _mode == ThemeMode.dark,
+            onThemeChanged: (dark) => setState(() => _mode = dark ? ThemeMode.dark : ThemeMode.light),
+          )
+        : widget.firebaseError == null
+            ? AuthGate(child: MainShell(
+                isDark: _mode == ThemeMode.dark,
+                onThemeChanged: (dark) => setState(() => _mode = dark ? ThemeMode.dark : ThemeMode.light),
+              ))
+            : FirebaseSetupRequiredScreen(error: widget.firebaseError!),
   );
 }
 
@@ -262,9 +272,9 @@ class _MainShellState extends State<MainShell> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('ایجاد محتوای جدید', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); OnlinePostComposer.create(context); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس یا ویدیو'), onTap: () { Navigator.pop(ctx); OnlineStoriesStrip.createStory(context); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); OnlinePostComposer.create(context, asReel: true); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); if (widget.useFirebase) { OnlinePostComposer.create(context); } else { _chooseMedia(kind: 'post'); } }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس یا ویدیو'), onTap: () { Navigator.pop(ctx); if (widget.useFirebase) { OnlineStoriesStrip.createStory(context); } else { _chooseMedia(kind: 'story'); } }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); if (widget.useFirebase) { OnlinePostComposer.create(context, asReel: true); } else { _chooseMedia(kind: 'reel'); } }),
         ]),
       )),
     );
