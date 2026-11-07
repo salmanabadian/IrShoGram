@@ -49,7 +49,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
         .orderBy('username')
         .startAt([normalized])
         .endAt(['${normalized}\uf8ff'])
-        .limit(limit.clamp(1, 50))
+        .limit(limit.clamp(1, 50).toInt())
         .get();
     return result.docs.map((doc) => UserProfile.fromMap(doc.data())).toList();
   }
@@ -123,7 +123,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
   Future<List<SocialPost>> getUserPosts(String uid, {int limit = 20}) async {
     final result = await _posts.where('authorId', isEqualTo: uid)
         .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 100))
+        .limit(limit.clamp(1, 100).toInt())
         .get();
     return result.docs.map((doc) => SocialPost.fromMap(doc.id, doc.data())).toList();
   }
@@ -212,7 +212,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
   Future<List<PostComment>> getComments(String postId, {int limit = 50}) async {
     final result = await _posts.doc(postId).collection('comments')
         .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 100))
+        .limit(limit.clamp(1, 100).toInt())
         .get();
     return result.docs.map((doc) => PostComment.fromMap(doc.id, doc.data())).toList();
   }
@@ -221,7 +221,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
   Future<List<AppNotification>> getNotifications(String uid, {int limit = 50}) async {
     final result = await _users.doc(uid).collection('notifications')
         .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 100))
+        .limit(limit.clamp(1, 100).toInt())
         .get();
     return result.docs.map((doc) => AppNotification.fromMap(doc.id, doc.data())).toList();
   }
@@ -243,7 +243,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
         .where('expiresAt', isGreaterThan: Timestamp.now())
         .orderBy('expiresAt')
         .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 100))
+        .limit(limit.clamp(1, 100).toInt())
         .get();
     return result.docs.map((doc) => Story.fromMap(doc.id, doc.data())).toList();
   }
@@ -268,7 +268,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
   Future<List<Reel>> getReels({int limit = 20}) async {
     final result = await _db.collection('reels')
         .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 50))
+        .limit(limit.clamp(1, 50).toInt())
         .get();
     return result.docs.map((doc) => Reel.fromMap(doc.id, doc.data())).toList();
   }
@@ -322,7 +322,7 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
   Stream<List<DirectMessage>> watchMessages(String conversationId, {int limit = 50}) {
     return _db.collection('conversations').doc(conversationId).collection('messages')
         .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 100))
+        .limit(limit.clamp(1, 100).toInt())
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => DirectMessage.fromMap(doc.id, doc.data()))
