@@ -26,6 +26,13 @@ jobs:
         run: flutter analyze
       - name: Run tests
         run: flutter test
+      - name: Build local preview APK (no Google sign-in required)
+        run: flutter build apk --release --dart-define=IRSHOGRAM_PREVIEW=true
+      - name: Upload preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: irshogram-preview-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
       - name: Restore Firebase Android configuration
         if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
         run: |
