@@ -38,7 +38,8 @@ service cloud.firestore {
         allow read: if signedIn();
         allow create: if isOwner(uid)
           && targetUid != uid
-          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.keys().hasOnly(['createdAt', 'targetUid'])
+          && request.resource.data.targetUid == targetUid
           && exists(/databases/$(database)/documents/users/$(targetUid));
         allow delete: if isOwner(uid);
         allow update: if false;
