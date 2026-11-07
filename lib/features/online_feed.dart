@@ -293,7 +293,7 @@ class OnlinePostComposer {
     messenger.showSnackBar(const SnackBar(content: Text('در حال بارگذاری رسانه و انتشار پست...')));
     try {
       final extension = picked.name.contains('.') ? picked.name.split('.').last.toLowerCase() : (isVideo ? 'mp4' : 'jpg');
-      final path = 'posts/${user.uid}/${const Uuid().v4()}.$extension';
+      final path = '${asReel ? 'reels' : 'posts'}/${user.uid}/${const Uuid().v4()}.$extension';
       final storageRef = FirebaseStorage.instance.ref().child(path);
       final metadata = SettableMetadata(contentType: picked.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'));
       await storageRef.putFile(File(picked.path), metadata);
