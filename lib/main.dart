@@ -2,6 +2,8 @@
 
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -121,6 +123,20 @@ class _MainShellState extends State<MainShell> {
       _messages = results[2] as List<LocalMessage>;
       _profile = results[3] as Map<String, String>;
       _following = results[4] as List<String>;
+    });
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final profileSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final profile = profileSnapshot.data() ?? <String, dynamic>{};
+    final followingSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).collection('following').get();
+    if (!mounted) return;
+    setState(() {
+      _profile = {
+        'username': profile['username'] as String? ?? 'user_${uid.substring(0, 8)}',
+        'name': profile['displayName'] as String? ?? 'کاربر ایرشوگرام',
+        'bio': profile['bio'] as String? ?? '',
+        'avatar': profile['photoUrl'] as String? ?? '',
+      };
+      _following = followingSnapshot.docs.map((doc) => doc.id).toList();
       _loading = false;
     });
   }
@@ -305,6 +321,13 @@ class _MainShellState extends State<MainShell> {
           }
           _profile = {'name': name.text.trim(), 'username': u, 'bio': bio.text.trim(), 'avatar': _profile['avatar'] ?? ''};
           await _store.saveProfile(_profile);
+          final uid = FirebaseAuth.instance.currentUser!.uid;
+          await FirebaseFirestore.instance.collection('users').doc(uid).update({
+            'username': u,
+            'displayName': name.text.trim(),
+            'bio': bio.text.trim(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
           if (mounted) setState(() {});
           if (ctx.mounted) Navigator.pop(ctx);
         }, child: const Text('ذخیره')),
@@ -386,32 +409,58 @@ class _MainShellState extends State<MainShell> {
   ]);
 
   Widget _searchPage() {
-    final query = _searchController.text.trim().toLowerCase();
-    final results = _people.where((name) => name.toLowerCase().contains(query)).toList();
-    final explorePosts = _posts.where((p) => !p.isVideo).toList();
+    final query = _searchController.text.trim().replaceFirst(RegExp(r'^@'), '');
+    final usersQuery = FirebaseFirestore.instance.collection('users')
+        .orderBy('username')
+        .startAt([query])
+        .endAt(['${query}\uf8ff'])
+        .limit(30);
     return Column(children: [
       Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 8), child: SizedBox(height: 40, child: TextField(
         controller: _searchController, onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 21), hintText: 'جستجو', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 21), hintText: 'جستجوی افراد', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
           suffixIcon: query.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () { _searchController.clear(); setState(() {}); })),
       ))),
-      Expanded(child: query.isNotEmpty
-        ? results.isEmpty ? const Center(child: Text('نتیجه‌ای پیدا نشد.')) : ListView(children: results.map((name) => ListTile(
-            leading: _avatar(name), title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)), subtitle: const Text('حساب نمونه محلی'),
-            trailing: SizedBox(height: 32, child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: _following.contains(name) ? const Color(0xFFEFEFEF) : const Color(0xFF0095F6), foregroundColor: _following.contains(name) ? _igBlack : Colors.white, elevation: 0),
-              onPressed: () async { setState(() => _following.contains(name) ? _following.remove(name) : _following.add(name)); await _store.saveFollowing(_following); },
-              child: Text(_following.contains(name) ? 'دنبال می‌کنید' : 'دنبال کردن'))),
-            onTap: () => _openChat(name),
-          )).toList())
-        : explorePosts.isEmpty ? const Center(child: Text('برای دیدن محتوا، ابتدا پست یا ریلز منتشر کنید.', style: TextStyle(color: _igGrey)))
-        : GridView.builder(padding: const EdgeInsets.all(2), itemCount: explorePosts.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
-            itemBuilder: (_, i) => GestureDetector(onTap: () => setState(() => _tab = 0), child: Stack(fit: StackFit.expand, children: [
-              Image.file(File(explorePosts[i].mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFEFEFEF))),
-              if (explorePosts[i].isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 20)),
-            ]))),
-      ),
+      Expanded(child: query.isEmpty
+        ? const Center(child: Text('برای پیدا کردن حساب‌ها، نام کاربری را جستجو کنید.', style: TextStyle(color: _igGrey)))
+        : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: usersQuery.snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return const Center(child: Text('جستجو با خطا روبه‌رو شد.'));
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs.where((doc) => doc.id != FirebaseAuth.instance.currentUser!.uid).toList();
+              if (docs.isEmpty) return const Center(child: Text('حسابی پیدا نشد.'));
+              return ListView(children: docs.map((doc) {
+                final data = doc.data();
+                final username = data['username'] as String? ?? 'کاربر';
+                final name = data['displayName'] as String? ?? '';
+                final following = _following.contains(doc.id);
+                return ListTile(
+                  leading: CircleAvatar(backgroundImage: (data['photoUrl'] as String?)?.isNotEmpty == true
+                    ? NetworkImage(data['photoUrl'] as String) : null,
+                    child: (data['photoUrl'] as String?)?.isNotEmpty == true ? null : Text(username.isEmpty ? '?' : username[0].toUpperCase())),
+                  title: Text(username, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(name.isEmpty ? 'حساب IrShoGram' : name),
+                  trailing: SizedBox(height: 32, child: FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: following ? const Color(0xFFEFEFEF) : const Color(0xFF0095F6), foregroundColor: following ? _igBlack : Colors.white, elevation: 0),
+                    onPressed: () async {
+                      final ref = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).collection('following').doc(doc.id);
+                      try {
+                        if (following) {
+                          await ref.delete();
+                        } else {
+                          await ref.set({'createdAt': FieldValue.serverTimestamp(), 'targetUid': doc.id});
+                        }
+                        if (mounted) setState(() => following ? _following.remove(doc.id) : _following.add(doc.id));
+                      } catch (error) { _notice('تغییر دنبال‌کردن انجام نشد: $error'); }
+                    },
+                    child: Text(following ? 'دنبال می‌کنید' : 'دنبال کردن'),
+                  )),
+                  onTap: () => _openChat(username),
+                );
+              }).toList());
+            },
+          )),
     ]);
   }
 
