@@ -52,15 +52,19 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
           await FirebaseAuth.instance.signInWithCredential(credential);
         },
         verificationFailed: (e) {
-          if (mounted) setState(() { _busy = false; _error = _message(e); });
+          if (mounted) {
+            setState(() { _busy = false; _error = _message(e); });
+          }
         },
         codeSent: (id, token) {
-          if (mounted) setState(() {
+          if (mounted) {
+            setState(() {
             _verificationId = id;
             _resendToken = token;
             _codeSent = true;
             _busy = false;
-          });
+            });
+          }
         },
         codeAutoRetrievalTimeout: (id) => _verificationId = id,
       );
