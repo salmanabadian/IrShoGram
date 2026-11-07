@@ -15,6 +15,38 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
   bool _busy = false;
   String? _error;
 
+  String _firebaseErrorMessage(FirebaseAuthException error) {
+    return switch (error.code) {
+      'account-exists-with-different-credential' =>
+        'این ایمیل قبلاً با روش ورود دیگری ثبت شده است. با پشتیبانی تماس بگیرید.',
+      'invalid-credential' || 'credential-already-in-use' =>
+        'اطلاعات ورود Google معتبر نیست. دوباره حساب خود را انتخاب کنید.',
+      'operation-not-allowed' =>
+        'ورود با Google در تنظیمات Firebase فعال نشده است.',
+      'user-disabled' => 'این حساب کاربری غیرفعال شده است.',
+      'too-many-requests' =>
+        'تلاش‌های ورود بیش از حد بوده است. کمی بعد دوباره امتحان کنید.',
+      'network-request-failed' =>
+        'اتصال اینترنت برقرار نیست. اینترنت را بررسی و دوباره تلاش کنید.',
+      'missing-google-id-token' =>
+        'Google توکن ورود را برنگرداند. تنظیمات OAuth باید بررسی شود.',
+      _ => 'ورود با Google انجام نشد. دوباره تلاش کنید.',
+    };
+  }
+
+  String _googleErrorMessage(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('canceled') || message.contains('cancelled')) {
+      return 'ورود با Google لغو شد.';
+    }
+    if (message.contains('network') ||
+        message.contains('socket') ||
+        message.contains('timeout')) {
+      return 'اتصال اینترنت برقرار نیست. اینترنت را بررسی و دوباره تلاش کنید.';
+    }
+    return 'ارتباط با Google برقرار نشد. دوباره تلاش کنید.';
+  }
+
   Future<void> _signInWithGoogle() async {
     if (_busy) return;
     setState(() {
@@ -25,8 +57,7 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
     try {
       await _googleInitialization;
       final googleUser = await GoogleSignIn.instance.authenticate();
-      final googleAuth = googleUser.authentication;
-      final idToken = googleAuth.idToken;
+      final idToken = googleUser.authentication.idToken;
 
       if (idToken == null || idToken.isEmpty) {
         throw FirebaseAuthException(
@@ -38,22 +69,17 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
       final credential = GoogleAuthProvider.credential(idToken: idToken);
       await FirebaseAuth.instance.signInWithCredential(credential);
       // AuthGate loads or creates the user's Firestore profile after sign-in.
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (error) {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'خطای ورود Google (${e.code}): '
-            '${e.message ?? 'جزئیات بیشتری از Firebase دریافت نشد.'}';
+        _error = _firebaseErrorMessage(error);
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      final message = e.toString().toLowerCase();
       setState(() {
         _busy = false;
-        _error = message.contains('canceled') ||
-                message.contains('cancelled')
-            ? 'ورود با Google لغو شد.'
-            : 'خطای Google: $e';
+        _error = _googleErrorMessage(error);
       });
     }
   }
