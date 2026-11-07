@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_underscores
+
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
