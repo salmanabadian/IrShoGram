@@ -790,6 +790,36 @@ class SavedPostsPage extends StatelessWidget {
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
+
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('خروج از حساب'),
+        content: const Text('آیا می‌خواهید از حساب Google خود خارج شوید؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('انصراف'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('خروج'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('خروج از حساب انجام نشد. دوباره تلاش کنید.')),
+      );
+    }
+  }
+
   Widget _section(String title, List<Widget> items) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Padding(padding: const EdgeInsets.fromLTRB(16, 22, 16, 7), child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _igBlack))),
     ...items,
@@ -820,6 +850,13 @@ class SettingsPage extends StatelessWidget {
       _section('بیشتر', [
         const ListTile(leading: Icon(Icons.help_outline), title: Text('راهنما'), trailing: Icon(Icons.chevron_right)),
         const ListTile(leading: Icon(Icons.info_outline), title: Text('درباره IrShoGram'), subtitle: Text('نسخه اولیه محلی؛ قابلیت‌های آنلاین پس از اتصال سرور فعال می‌شوند.')),
+      ]),
+      _section('نشست کاربری', [
+        ListTile(
+          leading: const Icon(Icons.logout, color: Colors.red),
+          title: const Text('خروج از حساب'),
+          onTap: () => _confirmSignOut(context),
+        ),
       ]),
       const Padding(padding: EdgeInsets.fromLTRB(16, 22, 16, 30), child: Text('IrShoGram', style: TextStyle(color: _igGrey, fontWeight: FontWeight.w600))),
     ]),
