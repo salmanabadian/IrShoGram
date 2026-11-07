@@ -75,7 +75,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
 
   Future<void> _sendCode({bool resend = false}) async {
     final phone = _phone.text.trim().replaceAll(' ', '');
-    if (!RegExp(r'^\\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
+    if (!RegExp(r'\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
       setState(() => _error = 'شماره را با کد کشور وارد کنید؛ مانند +989121234567');
       return;
     }
