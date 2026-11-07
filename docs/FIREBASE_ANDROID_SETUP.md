@@ -15,9 +15,9 @@ Do not rename it to `google-services (1).json`. The file is intentionally exclud
 ## Firebase Console checklist
 
 1. Open Firebase Console and select the IrShoGram project.
-2. In Authentication → Sign-in method, enable **Phone**.
+2. In Authentication → Sign-in method, enable **Phone** and **Google**. For Google, complete the provider support email selection and save the provider.
 3. Confirm the Android app registered in Project settings uses `com.irshogram.app`.
-4. Add the debug and release SHA-1 and SHA-256 fingerprints for the signing certificates used by the app.
+4. Add the debug and release SHA-1 and SHA-256 fingerprints for the signing certificates used by the app. Google Sign-In on Android depends on the matching SHA fingerprints and OAuth client configuration. After changing fingerprints, download a fresh `google-services.json` and replace the local file.
 5. Confirm the Firestore database and Storage bucket exist.
 6. Deploy `firestore.rules`, `storage.rules`, and `firestore.indexes.json` from this repository.
 7. Test phone verification on a physical Android device. Use Firebase test phone numbers during development to avoid repeated SMS quota use.
