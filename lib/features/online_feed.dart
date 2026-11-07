@@ -556,13 +556,13 @@ class OnlineMessagesPage extends StatelessWidget {
           if (snapshot.hasError) return Center(child: Text('بارگذاری پیام‌ها ناموفق بود: ${snapshot.error}'));
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           final docs = snapshot.data!.docs;
-          if (docs.isEmpty) return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          if (docs.isEmpty) { return const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.send_outlined, size: 58, color: _ink),
             SizedBox(height: 12),
             Text('پیام‌هایت را ارسال کن', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
             SizedBox(height: 6),
             Text('برای شروع گفتگو، یک حساب را از بخش جستجو انتخاب کن.', style: TextStyle(color: _muted)),
-          ]));
+          ])); }
           return ListView(children: docs.map((doc) {
             final participants = List<String>.from(doc.data()['participantIds'] as List? ?? const []);
             final otherUid = participants.firstWhere((id) => id != uid, orElse: () => '');
