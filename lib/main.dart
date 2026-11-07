@@ -1,15 +1,29 @@
-// ignore_for_file: unnecessary_underscores
+// ignore_for_file: unnecessary_underscores, unused_element
 
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
+import 'auth/auth_gate.dart';
+import 'features/online_feed.dart';
 import 'services/local_social_store.dart';
 
-void main() => runApp(const IrShoGramApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Object? firebaseError;
+  try {
+    await Firebase.initializeApp();
+  } catch (error) {
+    firebaseError = error;
+  }
+  runApp(IrShoGramApp(firebaseError: firebaseError));
+}
 
 const _purple = Color(0xFF0095F6);
 const _igBlack = Color(0xFF262626);
@@ -18,7 +32,8 @@ const _igBorder = Color(0xFFDBDBDB);
 const _people = <String>['ali.photo', 'mohammad', 'reza_daily', 'sara.art', 'amir', 'maryam'];
 
 class IrShoGramApp extends StatefulWidget {
-  const IrShoGramApp({super.key});
+  const IrShoGramApp({super.key, this.firebaseError});
+  final Object? firebaseError;
 
   @override
   State<IrShoGramApp> createState() => _IrShoGramAppState();
@@ -45,15 +60,18 @@ class _IrShoGramAppState extends State<IrShoGramApp> {
       brightness: Brightness.dark,
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFB65CDE), brightness: Brightness.dark),
     ),
-    home: MainShell(
+    home: widget.firebaseError == null
+        ? AuthGate(child: MainShell(
       isDark: _mode == ThemeMode.dark,
       onThemeChanged: (dark) => setState(() => _mode = dark ? ThemeMode.dark : ThemeMode.light),
-    ),
+    ))
+        : FirebaseSetupRequiredScreen(error: widget.firebaseError!),
   );
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key, required this.isDark, required this.onThemeChanged});
+  const MainShell({super.key, required this.isDark, required this.onThemeChanged, this.useFirebase = true});
+  final bool useFirebase;
   final bool isDark;
   final ValueChanged<bool> onThemeChanged;
 
@@ -106,6 +124,24 @@ class _MainShellState extends State<MainShell> {
       _messages = results[2] as List<LocalMessage>;
       _profile = results[3] as Map<String, String>;
       _following = results[4] as List<String>;
+    });
+    if (!widget.useFirebase) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final profileSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final profile = profileSnapshot.data() ?? <String, dynamic>{};
+    final followingSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).collection('following').get();
+    if (!mounted) return;
+    setState(() {
+      _profile = {
+        'username': profile['username'] as String? ?? 'user_${uid.substring(0, 8)}',
+        'name': profile['displayName'] as String? ?? 'کاربر ایرشوگرام',
+        'bio': profile['bio'] as String? ?? '',
+        'avatar': profile['photoUrl'] as String? ?? '',
+      };
+      _following = followingSnapshot.docs.map((doc) => doc.id).toList();
       _loading = false;
     });
   }
@@ -209,10 +245,9 @@ class _MainShellState extends State<MainShell> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text('ایجاد محتوای جدید', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'post'); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'story'); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_camera_back_outlined), title: const Text('استوری ویدیویی'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'storyVideo'); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'reel'); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); OnlinePostComposer.create(context); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس یا ویدیو'), onTap: () { Navigator.pop(ctx); OnlineStoriesStrip.createStory(context); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); OnlinePostComposer.create(context, asReel: true); }),
         ]),
       )),
     );
@@ -290,6 +325,13 @@ class _MainShellState extends State<MainShell> {
           }
           _profile = {'name': name.text.trim(), 'username': u, 'bio': bio.text.trim(), 'avatar': _profile['avatar'] ?? ''};
           await _store.saveProfile(_profile);
+          final uid = FirebaseAuth.instance.currentUser!.uid;
+          await FirebaseFirestore.instance.collection('users').doc(uid).update({
+            'username': u,
+            'displayName': name.text.trim(),
+            'bio': bio.text.trim(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
           if (mounted) setState(() {});
           if (ctx.mounted) Navigator.pop(ctx);
         }, child: const Text('ذخیره')),
@@ -362,49 +404,75 @@ class _MainShellState extends State<MainShell> {
     ]);
   }
 
-  Widget _homePage() => ListView(padding: const EdgeInsets.only(bottom: 12), children: [
-    _storiesStrip(),
-    const Divider(height: 1, color: _igBorder),
-    if (_posts.isEmpty) ...[
-      const SizedBox(height: 70), const Icon(Icons.photo_library_outlined, size: 54, color: _igGrey),
-      const SizedBox(height: 14),
-      const Center(child: Text('هنوز پستی منتشر نشده است.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack))),
-      const SizedBox(height: 6),
-      const Center(child: Text('اولین عکس یا ویدیوی خود را به اشتراک بگذارید.', style: TextStyle(color: _igGrey))),
-      const SizedBox(height: 16),
-      Center(child: TextButton(onPressed: _createMenu, child: const Text('ایجاد پست'))),
-    ] else ...[
-      for (final post in _posts) _postCard(post),
-    ],
-  ]);
+  Widget _homePage() => widget.useFirebase
+      ? Column(children: [
+          const OnlineStoriesStrip(),
+          const Divider(height: 1, color: _igBorder),
+          Expanded(child: OnlineFeedPage(onCreatePost: () => OnlinePostComposer.create(context))),
+        ])
+      : ListView(padding: const EdgeInsets.only(bottom: 12), children: [
+          _storiesStrip(),
+          const Divider(height: 1, color: _igBorder),
+          if (_posts.isEmpty) const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: Text('هنوز پستی منتشر نشده است.')),
+          ) else for (final post in _posts) _postCard(post),
+        ]);
 
   Widget _searchPage() {
-    final query = _searchController.text.trim().toLowerCase();
-    final results = _people.where((name) => name.toLowerCase().contains(query)).toList();
-    final explorePosts = _posts.where((p) => !p.isVideo).toList();
+    if (!widget.useFirebase) return const Center(child: Text('جستجو در حالت آزمایش رابط کاربری'));
+    final query = _searchController.text.trim().replaceFirst(RegExp(r'^@'), '');
+    final usersQuery = FirebaseFirestore.instance.collection('users')
+        .orderBy('username')
+        .startAt([query])
+        .endAt(['$query\uf8ff'])
+        .limit(30);
     return Column(children: [
       Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 8), child: SizedBox(height: 40, child: TextField(
         controller: _searchController, onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 21), hintText: 'جستجو', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 21), hintText: 'جستجوی افراد', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
           suffixIcon: query.isEmpty ? null : IconButton(icon: const Icon(Icons.close), onPressed: () { _searchController.clear(); setState(() {}); })),
       ))),
-      Expanded(child: query.isNotEmpty
-        ? results.isEmpty ? const Center(child: Text('نتیجه‌ای پیدا نشد.')) : ListView(children: results.map((name) => ListTile(
-            leading: _avatar(name), title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)), subtitle: const Text('حساب نمونه محلی'),
-            trailing: SizedBox(height: 32, child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: _following.contains(name) ? const Color(0xFFEFEFEF) : const Color(0xFF0095F6), foregroundColor: _following.contains(name) ? _igBlack : Colors.white, elevation: 0),
-              onPressed: () async { setState(() => _following.contains(name) ? _following.remove(name) : _following.add(name)); await _store.saveFollowing(_following); },
-              child: Text(_following.contains(name) ? 'دنبال می‌کنید' : 'دنبال کردن'))),
-            onTap: () => _openChat(name),
-          )).toList())
-        : explorePosts.isEmpty ? const Center(child: Text('برای دیدن محتوا، ابتدا پست یا ریلز منتشر کنید.', style: TextStyle(color: _igGrey)))
-        : GridView.builder(padding: const EdgeInsets.all(2), itemCount: explorePosts.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
-            itemBuilder: (_, i) => GestureDetector(onTap: () => setState(() => _tab = 0), child: Stack(fit: StackFit.expand, children: [
-              Image.file(File(explorePosts[i].mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFEFEFEF))),
-              if (explorePosts[i].isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 20)),
-            ]))),
-      ),
+      Expanded(child: query.isEmpty
+        ? const Center(child: Text('برای پیدا کردن حساب‌ها، نام کاربری را جستجو کنید.', style: TextStyle(color: _igGrey)))
+        : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: usersQuery.snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return const Center(child: Text('جستجو با خطا روبه‌رو شد.'));
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs.where((doc) => doc.id != FirebaseAuth.instance.currentUser!.uid).toList();
+              if (docs.isEmpty) return const Center(child: Text('حسابی پیدا نشد.'));
+              return ListView(children: docs.map((doc) {
+                final data = doc.data();
+                final username = data['username'] as String? ?? 'کاربر';
+                final name = data['displayName'] as String? ?? '';
+                final following = _following.contains(doc.id);
+                return ListTile(
+                  leading: CircleAvatar(backgroundImage: (data['photoUrl'] as String?)?.isNotEmpty == true
+                    ? NetworkImage(data['photoUrl'] as String) : null,
+                    child: (data['photoUrl'] as String?)?.isNotEmpty == true ? null : Text(username.isEmpty ? '?' : username[0].toUpperCase())),
+                  title: Text(username, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(name.isEmpty ? 'حساب IrShoGram' : name),
+                  trailing: SizedBox(height: 32, child: FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: following ? const Color(0xFFEFEFEF) : const Color(0xFF0095F6), foregroundColor: following ? _igBlack : Colors.white, elevation: 0),
+                    onPressed: () async {
+                      final ref = FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser!.uid).collection('following').doc(doc.id);
+                      try {
+                        if (following) {
+                          await ref.delete();
+                        } else {
+                          await ref.set({'createdAt': FieldValue.serverTimestamp(), 'targetUid': doc.id});
+                        }
+                        if (mounted) setState(() { if (following) { _following.remove(doc.id); } else { _following.add(doc.id); } });
+                      } catch (error) { _notice('تغییر دنبال‌کردن انجام نشد: $error'); }
+                    },
+                    child: Text(following ? 'دنبال می‌کنید' : 'دنبال کردن'),
+                  )),
+                  onTap: () => OnlineChatPage.open(context, doc.id, username),
+                );
+              }).toList());
+            },
+          )),
     ]);
   }
 
@@ -416,74 +484,12 @@ class _MainShellState extends State<MainShell> {
     )));
   }
 
-  Widget _messagesPage() {
-    final peers = _messages.map((m) => m.peer).toSet().toList();
-    return Column(children: [
-      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 8), child: Row(children: [
-        Expanded(child: Text(_username, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _igBlack))),
-        IconButton(onPressed: () => _notice('گفتگوی جدید را از بخش جستجو شروع کنید.'), icon: const Icon(Icons.edit_square, color: _igBlack)),
-      ])),
-      Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 10), child: SizedBox(height: 38, child: TextField(
-        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 20), hintText: 'جستجو', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
-      ))),
-      Expanded(child: peers.isEmpty
-        ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.send_outlined, size: 58, color: _igBlack), SizedBox(height: 12),
-            Text('پیام‌هایت را ارسال کن', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            SizedBox(height: 6), Text('به دوستانت پیام خصوصی بده.', style: TextStyle(color: _igGrey)),
-          ]))
-        : ListView(children: [
-            const Padding(padding: EdgeInsets.fromLTRB(16, 4, 16, 8), child: Text('پیام‌ها', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
-            for (final peer in peers.reversed) ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-              leading: _avatar(peer, radius: 25), title: Text(peer, style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(_messages.lastWhere((m) => m.peer == peer).text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _igGrey)),
-              trailing: const Icon(Icons.camera_alt_outlined, color: _igBlack), onTap: () => _openChat(peer)),
-          ])),
-    ]);
-  }
+  Widget _messagesPage() => widget.useFirebase ? const OnlineMessagesPage() : const Center(child: Text('پیام‌ها در حالت آزمایش رابط کاربری'));
 
-  Widget _reelsPage() {
-    final reels = _posts.where((p) => p.isVideo).toList();
-    if (reels.isEmpty) {
-      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.video_collection_outlined, size: 62, color: Colors.grey),
-      const SizedBox(height: 12),
-      const Text('هنوز ریلزی وجود ندارد.'),
-      const SizedBox(height: 12),
-      FilledButton.icon(onPressed: () => _chooseMedia(kind: 'reel'), icon: const Icon(Icons.add), label: const Text('ساخت ریلز')),
-      ]));
-    }
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: reels.length,
-      itemBuilder: (ctx, index) {
-        final reel = reels[index];
-        return Stack(fit: StackFit.expand, children: [
-          LocalVideo(path: reel.mediaPath, autoplay: true),
-          DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: .15), Colors.transparent, Colors.black.withValues(alpha: .72)]))),
-          Positioned(left: 16, right: 16, bottom: 26, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('@${reel.username}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 8),
-              Text(reel.caption, style: const TextStyle(color: Colors.white)),
-            ])),
-            Column(children: [
-              IconButton(onPressed: () => _toggleLike(reel), icon: Icon(reel.likes.contains(_username) ? Icons.favorite : Icons.favorite_border, color: Colors.white, size: 30)),
-              Text('${reel.likes.length}', style: const TextStyle(color: Colors.white)),
-              const SizedBox(height: 14),
-              IconButton(onPressed: () => _showComments(reel), icon: const Icon(Icons.mode_comment_outlined, color: Colors.white, size: 28)),
-              Text('${reel.comments.length}', style: const TextStyle(color: Colors.white)),
-              const SizedBox(height: 14),
-              const Icon(Icons.more_horiz, color: Colors.white, size: 28),
-            ]),
-          ])),
-        ]);
-      },
-    );
-  }
+  Widget _reelsPage() => widget.useFirebase ? const OnlineReelsPage() : const Center(child: Text('ریلز در حالت آزمایش رابط کاربری'));
 
   Widget _profilePage() {
-    final ownPosts = _posts.where((p) => p.username == _username).toList();
+    if (!widget.useFirebase) return Center(child: Text(_username));
     final saved = _posts.where((p) => p.savedByMe).toList();
     return ListView(padding: EdgeInsets.zero, children: [
       Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 12), child: Row(children: [
@@ -505,7 +511,7 @@ class _MainShellState extends State<MainShell> {
       Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Row(children: [
         _avatar(_username, radius: 42), const SizedBox(width: 25),
         Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-          _stat(ownPosts.length.toString(), 'پست'), _stat('—', 'دنبال‌کننده'), _stat(_following.length.toString(), 'دنبال‌شونده'),
+          _profilePostCount(), _followerCount(), _stat(_following.length.toString(), 'دنبال‌شونده'),
         ])),
       ])),
       Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -529,18 +535,61 @@ class _MainShellState extends State<MainShell> {
         Padding(padding: EdgeInsets.symmetric(vertical: 11), child: Icon(Icons.video_library_outlined, color: _igGrey, size: 23)),
         Padding(padding: EdgeInsets.symmetric(vertical: 11), child: Icon(Icons.person_pin_outlined, color: _igGrey, size: 23)),
       ]),
-      if (ownPosts.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: 45), child: Column(children: [
-        Icon(Icons.camera_alt_outlined, size: 45, color: _igBlack), SizedBox(height: 10),
-        Text('هنوز پستی منتشر نکرده‌اید.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack)),
-      ])) else GridView.builder(
-        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: ownPosts.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
-        itemBuilder: (_, i) => Stack(fit: StackFit.expand, children: [
-          ownPosts[i].isVideo ? Container(color: Colors.black, child: const Icon(Icons.play_arrow, color: Colors.white)) : Image.file(File(ownPosts[i].mediaPath), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
-          if (ownPosts[i].isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 18)),
-        ]),
-      ),
+      _onlineProfilePostsGrid(),
     ]);
+  }
+
+  Widget _profilePostCount() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final query = FirebaseFirestore.instance.collection('posts').where('authorId', isEqualTo: uid).snapshots();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: query,
+      builder: (context, snapshot) => _stat((snapshot.data?.docs.length ?? 0).toString(), 'پست'),
+    );
+  }
+
+  Widget _followerCount() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final count = FirebaseFirestore.instance.collectionGroup('following')
+        .where('targetUid', isEqualTo: uid).count().get();
+    return FutureBuilder<AggregateQuerySnapshot>(
+      future: count,
+      builder: (context, snapshot) => _stat((snapshot.data?.count ?? 0).toString(), 'دنبال‌کننده'),
+    );
+  }
+
+  Widget _onlineProfilePostsGrid() {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final posts = FirebaseFirestore.instance.collection('posts')
+        .where('authorId', isEqualTo: uid).orderBy('createdAt', descending: true).snapshots();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: posts,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) { return const Padding(
+          padding: EdgeInsets.all(24), child: Text('بارگذاری پست‌های پروفایل ناموفق بود.', textAlign: TextAlign.center)); }
+        if (!snapshot.hasData) { return const Padding(
+          padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())); }
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) { return const Padding(padding: EdgeInsets.symmetric(vertical: 45), child: Column(children: [
+          Icon(Icons.camera_alt_outlined, size: 45, color: _igBlack), SizedBox(height: 10),
+          Text('هنوز پستی منتشر نکرده‌اید.', style: TextStyle(fontWeight: FontWeight.w600, color: _igBlack)),
+        ])); }
+        return GridView.builder(
+          shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: docs.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2),
+          itemBuilder: (_, i) {
+            final data = docs[i].data();
+            final isVideo = data['mediaType'] == 'video';
+            final url = data['mediaUrl'] as String? ?? '';
+            return Stack(fit: StackFit.expand, children: [
+              if (isVideo) const ColoredBox(color: Colors.black, child: Center(child: Icon(Icons.play_arrow, color: Colors.white, size: 30)))
+              else Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image)),
+              if (isVideo) const Positioned(top: 5, right: 5, child: Icon(Icons.play_arrow, color: Colors.white, size: 18)),
+            ]);
+          },
+        );
+      },
+    );
   }
 
   Widget _stat(String number, String label) => Column(children: [Text(number, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Text(label, style: const TextStyle(fontSize: 12))]);
@@ -573,7 +622,7 @@ class _MainShellState extends State<MainShell> {
           style: TextStyle(fontSize: _tab == 0 ? 27 : 19, fontWeight: FontWeight.w800, fontStyle: _tab == 0 ? FontStyle.italic : FontStyle.normal, letterSpacing: _tab == 0 ? -.9 : 0, color: _igBlack)),
         centerTitle: true,
         leading: _tab == 0 ? IconButton(tooltip: 'اعلان‌ها', onPressed: _showNotifications, icon: const Icon(Icons.favorite_border, color: _igBlack, size: 27)) : null,
-        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: _createMenu, icon: const Icon(Icons.add_box_outlined, size: 27, color: _igBlack))] : null,
+        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: widget.useFirebase ? () => OnlinePostComposer.create(context) : _createMenu, icon: const Icon(Icons.add, size: 29, color: _igBlack))] : null,
       ),
       body: Directionality(textDirection: TextDirection.rtl, child: IndexedStack(index: _tab, children: pages)),
       bottomNavigationBar: SafeArea(top: false, child: Container(

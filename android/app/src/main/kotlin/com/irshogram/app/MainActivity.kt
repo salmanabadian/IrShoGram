@@ -1,4 +1,4 @@
-package com.example.irshogram
+package com.irshogram.app
 
 import io.flutter.embedding.android.FlutterActivity
 
