@@ -26,7 +26,7 @@ Last updated: 2026-11-07
 4. Debug and release SHA-1/SHA-256 fingerprints must be registered.
 5. Firestore indexes and security rules must be deployed to the Firebase project.
 6. Real SMS delivery, account creation, media upload, and cross-device synchronization must be tested on a physical Android device.
-7. Existing and new Flutter tests/analyzer must pass in CI; no successful APK build is claimed yet.
+7. The first CI pass confirmed dependency resolution and a clean analyzer. The widget test initially expected visible navigation labels, but the app exposes these as accessibility tooltips; the test was corrected to assert those tooltips. A rerun is required. No successful APK build is claimed yet.
 8. Production release signing, push notification delivery, reporting/blocking, privacy controls, moderation, media processing, and broader Instagram-like surfaces remain future work.
 
 ## Immediate next engineering work
