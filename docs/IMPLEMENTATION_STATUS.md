@@ -30,12 +30,12 @@ Last updated: 2026-11-07
 4. Debug and release SHA-1/SHA-256 fingerprints must be registered.
 5. Firestore indexes and security rules must be deployed to the Firebase project.
 6. Real SMS delivery, account creation, media upload, and cross-device synchronization must be tested on a physical Android device.
-7. The earlier foundation CI run passed dependency resolution, analysis, and widget tests. Subsequent online UI commits exposed analyzer findings; these are being fixed and the newest workflow run must pass before an APK can be claimed. No successful APK build is claimed yet.
+7. The latest GitHub Actions run on commit `0fbebe9820769ca35bef226a3ca3025a6354cf25` passed dependency resolution, `flutter analyze`, and all widget/unit tests. The APK steps were intentionally skipped because the protected `FIREBASE_ANDROID_CONFIG_BASE64` Actions secret is not configured. No APK artifact exists yet.
 8. Production release signing, push notification delivery, reporting/blocking, privacy controls, moderation, media processing, and broader Instagram-like surfaces remain future work.
 
 ## Immediate next engineering work
 
-- Run CI and fix every analyzer/test/build failure.
+- CI analysis and tests now pass. Configure the protected Firebase Android config secret, then run CI again to build and upload the APK.
 - Finish saved posts, notifications, story viewer tracking/replies/highlights, message attachments/read receipts, account switching, and settings/privacy actions.
 - Add proper pagination, media compression/transcoding, upload progress/retry, thumbnails, and lifecycle cleanup.
 - Add Cloud Functions or another trusted backend for notification fan-out, follower denormalization if needed, moderation, and cleanup of expired media.
