@@ -52,3 +52,10 @@ Copy the output into the repository's Settings → Secrets and variables → Act
 ## Phone-auth limitations
 
 Phone OTP delivery depends on Firebase project settings, allowed regions, quotas, billing/risk controls, and valid signing fingerprints. A successful code compile does not prove that real SMS delivery works. The first physical-device login is a required acceptance test.
+
+8. Link the Firebase project to a Cloud Billing account before relying on SMS delivery. Firebase's no-cost SMS allowance on the Spark plan was discontinued for Phone Authentication in September 2024.
+9. Configure the Authentication SMS region policy explicitly. New projects may default to allowing no regions; only allow the countries where your users actually need SMS delivery.
+
+## Important note for +98 (Iran) phone numbers
+
+Firebase says phone verification is supported globally, but its published list of regions with good expected delivery rates does not include Iran. That does not prove every Iranian carrier will fail, but it means delivery to +98 cannot be promised and must be tested with the actual carrier. Keep an alternate sign-in/recovery path available if the app is intended for users in Iran.
