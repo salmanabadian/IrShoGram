@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class PhoneSignInScreen extends StatefulWidget {
   const PhoneSignInScreen({super.key});
@@ -10,6 +11,7 @@ class PhoneSignInScreen extends StatefulWidget {
 class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
   final _phone = TextEditingController(text: '+98');
   final _code = TextEditingController();
+  final Future<void> _googleInitialization = GoogleSignIn.instance.initialize();
   String? _verificationId;
   int? _resendToken;
   bool _codeSent = false;
@@ -31,14 +33,49 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
       case 'too-many-requests': return 'درخواست‌های زیادی ارسال شده؛ کمی بعد تلاش کنید.';
       case 'quota-exceeded': return 'سهمیه ارسال پیامک Firebase تمام شده است.';
       case 'app-not-authorized': return 'این نسخه اندروید در Firebase مجاز نشده؛ SHA را بررسی کنید.';
-      case 'operation-not-allowed': return 'ورود با شماره تلفن در Firebase فعال نیست.';
+      case 'operation-not-allowed': return 'این روش ورود در Firebase فعال نیست.';
+      case 'account-exists-with-different-credential':
+        return 'برای این ایمیل روش ورود دیگری ثبت شده است؛ از همان روش وارد شوید.';
+      case 'credential-already-in-use':
+        return 'این حساب Google به حساب کاربری دیگری متصل است.';
       default: return 'ورود انجام نشد: ${e.message ?? e.code}';
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    if (_busy) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      await _googleInitialization;
+      final googleUser = await GoogleSignIn.instance.authenticate();
+      final googleAuth = googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw FirebaseAuthException(
+          code: 'missing-google-id-token',
+          message: 'Google did not return an ID token.',
+        );
+      }
+      final credential = GoogleAuthProvider.credential(idToken: idToken);
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      // AuthGate creates/loads the Firestore profile after Firebase confirms sign-in.
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() { _busy = false; _error = _message(e); });
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().toLowerCase();
+      setState(() {
+        _busy = false;
+        _error = message.contains('canceled') || message.contains('cancelled')
+            ? 'ورود با Google لغو شد.'
+            : 'ورود با Google انجام نشد. تنظیمات Google در Firebase و اثرانگشت SHA را بررسی کنید.';
+      });
     }
   }
 
   Future<void> _sendCode({bool resend = false}) async {
     final phone = _phone.text.trim().replaceAll(' ', '');
-    if (!RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
+    if (!RegExp(r'^\\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
       setState(() => _error = 'شماره را با کد کشور وارد کنید؛ مانند +989121234567');
       return;
     }
@@ -59,10 +96,10 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
         codeSent: (id, token) {
           if (mounted) {
             setState(() {
-            _verificationId = id;
-            _resendToken = token;
-            _codeSent = true;
-            _busy = false;
+              _verificationId = id;
+              _resendToken = token;
+              _codeSent = true;
+              _busy = false;
             });
           }
         },
@@ -106,7 +143,7 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
           const SizedBox(height: 18),
           const Text('IrShoGram', textAlign: TextAlign.center, style: TextStyle(fontSize: 34, fontWeight: FontWeight.w600, letterSpacing: -1.4, color: Color(0xFF262626))),
           const SizedBox(height: 12),
-          Text(_codeSent ? 'کد ارسال‌شده را وارد کنید' : 'با شماره تلفن خود وارد شوید یا حساب بسازید', textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF8E8E8E))),
+          Text(_codeSent ? 'کد ارسال‌شده را وارد کنید' : 'با شماره تلفن یا حساب Google وارد شوید', textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF8E8E8E))),
           const SizedBox(height: 28),
           if (!_codeSent)
             TextField(controller: _phone, keyboardType: TextInputType.phone, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'شماره تلفن همراه', hintText: '+989121234567', border: OutlineInputBorder()))
@@ -124,8 +161,34 @@ class _PhoneSignInScreenState extends State<PhoneSignInScreen> {
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0095F6)),
             child: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text(_codeSent ? 'تأیید و ورود' : 'دریافت کد ورود'),
           )),
+          if (!_codeSent) ...[
+            const SizedBox(height: 20),
+            const Row(children: [
+              Expanded(child: Divider(color: Color(0xFFDBDBDB))),
+              Padding(padding: EdgeInsets.symmetric(horizontal: 14), child: Text('یا', style: TextStyle(color: Color(0xFF8E8E8E), fontWeight: FontWeight.w600))),
+              Expanded(child: Divider(color: Color(0xFFDBDBDB))),
+            ]),
+            const SizedBox(height: 18),
+            SizedBox(height: 48, child: OutlinedButton(
+              onPressed: _busy ? null : _signInWithGoogle,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF262626),
+                side: const BorderSide(color: Color(0xFFDBDBDB)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: _busy
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('ادامه با Google', style: TextStyle(fontWeight: FontWeight.w600)),
+            )),
+          ],
           const SizedBox(height: 18),
-          const Text('با ادامه، کد ورود از طریق پیامک ارسال می‌شود.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Color(0xFF8E8E8E))),
+          Text(
+            _codeSent
+                ? 'کد ورود از طریق پیامک ارسال می‌شود.'
+                : 'با انتخاب Google، هویت شما از طریق Firebase Authentication تأیید می‌شود.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E8E)),
+          ),
         ],
       )),
     ))),
