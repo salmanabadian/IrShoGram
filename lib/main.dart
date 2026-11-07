@@ -70,7 +70,8 @@ class _IrShoGramAppState extends State<IrShoGramApp> {
 }
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key, required this.isDark, required this.onThemeChanged});
+  const MainShell({super.key, required this.isDark, required this.onThemeChanged, this.useFirebase = true});
+  final bool useFirebase;
   final bool isDark;
   final ValueChanged<bool> onThemeChanged;
 
@@ -124,6 +125,10 @@ class _MainShellState extends State<MainShell> {
       _profile = results[3] as Map<String, String>;
       _following = results[4] as List<String>;
     });
+    if (!widget.useFirebase) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final profileSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     final profile = profileSnapshot.data() ?? <String, dynamic>{};
@@ -399,15 +404,23 @@ class _MainShellState extends State<MainShell> {
     ]);
   }
 
-  Widget _homePage() => Column(children: [
-    const OnlineStoriesStrip(),
-    const Divider(height: 1, color: _igBorder),
-    Expanded(child: OnlineFeedPage(
-      onCreatePost: () => OnlinePostComposer.create(context),
-    )),
-  ]);
+  Widget _homePage() => widget.useFirebase
+      ? Column(children: [
+          const OnlineStoriesStrip(),
+          const Divider(height: 1, color: _igBorder),
+          Expanded(child: OnlineFeedPage(onCreatePost: () => OnlinePostComposer.create(context))),
+        ])
+      : ListView(padding: const EdgeInsets.only(bottom: 12), children: [
+          _storiesStrip(),
+          const Divider(height: 1, color: _igBorder),
+          if (_posts.isEmpty) const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: Text('هنوز پستی منتشر نشده است.')),
+          ) else for (final post in _posts) _postCard(post),
+        ]);
 
   Widget _searchPage() {
+    if (!widget.useFirebase) return const Center(child: Text('جستجو در حالت آزمایش رابط کاربری'));
     final query = _searchController.text.trim().replaceFirst(RegExp(r'^@'), '');
     final usersQuery = FirebaseFirestore.instance.collection('users')
         .orderBy('username')
@@ -471,11 +484,12 @@ class _MainShellState extends State<MainShell> {
     )));
   }
 
-  Widget _messagesPage() => const OnlineMessagesPage();
+  Widget _messagesPage() => widget.useFirebase ? const OnlineMessagesPage() : const Center(child: Text('پیام‌ها در حالت آزمایش رابط کاربری'));
 
-  Widget _reelsPage() => const OnlineReelsPage();
+  Widget _reelsPage() => widget.useFirebase ? const OnlineReelsPage() : const Center(child: Text('ریلز در حالت آزمایش رابط کاربری'));
 
   Widget _profilePage() {
+    if (!widget.useFirebase) return Center(child: Text(_username));
     final saved = _posts.where((p) => p.savedByMe).toList();
     return ListView(padding: EdgeInsets.zero, children: [
       Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 12), child: Row(children: [
