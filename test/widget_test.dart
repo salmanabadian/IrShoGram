@@ -24,7 +24,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('ایجاد محتوای جدید'), findsOneWidget);
     expect(find.text('ایجاد پست'), findsWidgets);
-    expect(find.text('استوری عکس'), findsOneWidget);
-    expect(find.text('استوری ویدیویی'), findsOneWidget);
+    expect(find.text('استوری عکس یا ویدیو'), findsOneWidget);
+    expect(find.text('ساخت ریلز'), findsOneWidget);
   });
 }
