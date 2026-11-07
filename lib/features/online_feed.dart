@@ -323,6 +323,8 @@ class OnlinePostComposer {
 class OnlineStoriesStrip extends StatelessWidget {
   const OnlineStoriesStrip({super.key});
 
+  static Future<void> createStory(BuildContext context) => _createStory(context);
+
   @override
   Widget build(BuildContext context) {
     final stories = FirebaseFirestore.instance.collection('stories')
