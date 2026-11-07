@@ -455,7 +455,7 @@ class _MainShellState extends State<MainShell> {
                     },
                     child: Text(following ? 'دنبال می‌کنید' : 'دنبال کردن'),
                   )),
-                  onTap: () => _openChat(username),
+                  onTap: () => OnlineChatPage.open(context, doc.id, username),
                 );
               }).toList());
             },
@@ -471,31 +471,7 @@ class _MainShellState extends State<MainShell> {
     )));
   }
 
-  Widget _messagesPage() {
-    final peers = _messages.map((m) => m.peer).toSet().toList();
-    return Column(children: [
-      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 8), child: Row(children: [
-        Expanded(child: Text(_username, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _igBlack))),
-        IconButton(onPressed: () => _notice('گفتگوی جدید را از بخش جستجو شروع کنید.'), icon: const Icon(Icons.edit_square, color: _igBlack)),
-      ])),
-      Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 10), child: SizedBox(height: 38, child: TextField(
-        decoration: InputDecoration(prefixIcon: const Icon(Icons.search, size: 20), hintText: 'جستجو', filled: true, fillColor: const Color(0xFFEFEFEF), contentPadding: EdgeInsets.zero, border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
-      ))),
-      Expanded(child: peers.isEmpty
-        ? const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.send_outlined, size: 58, color: _igBlack), SizedBox(height: 12),
-            Text('پیام‌هایت را ارسال کن', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            SizedBox(height: 6), Text('به دوستانت پیام خصوصی بده.', style: TextStyle(color: _igGrey)),
-          ]))
-        : ListView(children: [
-            const Padding(padding: EdgeInsets.fromLTRB(16, 4, 16, 8), child: Text('پیام‌ها', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
-            for (final peer in peers.reversed) ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-              leading: _avatar(peer, radius: 25), title: Text(peer, style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(_messages.lastWhere((m) => m.peer == peer).text, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _igGrey)),
-              trailing: const Icon(Icons.camera_alt_outlined, color: _igBlack), onTap: () => _openChat(peer)),
-          ])),
-    ]);
-  }
+  Widget _messagesPage() => const OnlineMessagesPage();
 
   Widget _reelsPage() => const OnlineReelsPage();
 
