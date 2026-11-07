@@ -241,9 +241,8 @@ class _MainShellState extends State<MainShell> {
           const Text('ایجاد محتوای جدید', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.photo_outlined), title: const Text('ایجاد پست'), onTap: () { Navigator.pop(ctx); OnlinePostComposer.create(context); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'story'); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_camera_back_outlined), title: const Text('استوری ویدیویی'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'storyVideo'); }),
-          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); _chooseMedia(kind: 'reel'); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.add_circle_outline), title: const Text('استوری عکس یا ویدیو'), onTap: () { Navigator.pop(ctx); OnlineStoriesStrip.createStory(context); }),
+          ListTile(dense: true, visualDensity: VisualDensity.compact, leading: const Icon(Icons.video_library_outlined), title: const Text('ساخت ریلز'), onTap: () { Navigator.pop(ctx); OnlinePostComposer.create(context, asReel: true); }),
         ]),
       )),
     );
@@ -498,45 +497,7 @@ class _MainShellState extends State<MainShell> {
     ]);
   }
 
-  Widget _reelsPage() {
-    final reels = _posts.where((p) => p.isVideo).toList();
-    if (reels.isEmpty) {
-      return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.video_collection_outlined, size: 62, color: Colors.grey),
-      const SizedBox(height: 12),
-      const Text('هنوز ریلزی وجود ندارد.'),
-      const SizedBox(height: 12),
-      FilledButton.icon(onPressed: () => _chooseMedia(kind: 'reel'), icon: const Icon(Icons.add), label: const Text('ساخت ریلز')),
-      ]));
-    }
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: reels.length,
-      itemBuilder: (ctx, index) {
-        final reel = reels[index];
-        return Stack(fit: StackFit.expand, children: [
-          LocalVideo(path: reel.mediaPath, autoplay: true),
-          DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: .15), Colors.transparent, Colors.black.withValues(alpha: .72)]))),
-          Positioned(left: 16, right: 16, bottom: 26, child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('@${reel.username}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 8),
-              Text(reel.caption, style: const TextStyle(color: Colors.white)),
-            ])),
-            Column(children: [
-              IconButton(onPressed: () => _toggleLike(reel), icon: Icon(reel.likes.contains(_username) ? Icons.favorite : Icons.favorite_border, color: Colors.white, size: 30)),
-              Text('${reel.likes.length}', style: const TextStyle(color: Colors.white)),
-              const SizedBox(height: 14),
-              IconButton(onPressed: () => _showComments(reel), icon: const Icon(Icons.mode_comment_outlined, color: Colors.white, size: 28)),
-              Text('${reel.comments.length}', style: const TextStyle(color: Colors.white)),
-              const SizedBox(height: 14),
-              const Icon(Icons.more_horiz, color: Colors.white, size: 28),
-            ]),
-          ])),
-        ]);
-      },
-    );
-  }
+  Widget _reelsPage() => const OnlineReelsPage();
 
   Widget _profilePage() {
     final ownPosts = _posts.where((p) => p.username == _username).toList();
