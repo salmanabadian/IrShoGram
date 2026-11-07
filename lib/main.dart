@@ -87,6 +87,7 @@ class _MainShellState extends State<MainShell> {
   int _tab = 0;
   bool _loading = true;
   bool _busy = false;
+  String? _loadError;
   List<LocalPost> _posts = [];
   List<LocalStory> _stories = [];
   List<LocalMessage> _messages = [];
@@ -110,40 +111,55 @@ class _MainShellState extends State<MainShell> {
   }
 
   Future<void> _load() async {
-    final results = await Future.wait([
-      _store.loadPosts(),
-      _store.loadStories(),
-      _store.loadMessages(),
-      _store.loadProfile(),
-      _store.loadFollowing(),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _posts = results[0] as List<LocalPost>;
-      _stories = results[1] as List<LocalStory>;
-      _messages = results[2] as List<LocalMessage>;
-      _profile = results[3] as Map<String, String>;
-      _following = results[4] as List<String>;
-    });
     if (!widget.useFirebase) {
-      if (mounted) setState(() => _loading = false);
+      final results = await Future.wait([
+        _store.loadPosts(),
+        _store.loadStories(),
+        _store.loadMessages(),
+        _store.loadProfile(),
+        _store.loadFollowing(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _posts = results[0] as List<LocalPost>;
+        _stories = results[1] as List<LocalStory>;
+        _messages = results[2] as List<LocalMessage>;
+        _profile = results[3] as Map<String, String>;
+        _following = results[4] as List<String>;
+        _loading = false;
+      });
       return;
     }
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final profileSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final profile = profileSnapshot.data() ?? <String, dynamic>{};
-    final followingSnapshot = await FirebaseFirestore.instance.collection('users').doc(uid).collection('following').get();
-    if (!mounted) return;
-    setState(() {
-      _profile = {
-        'username': profile['username'] as String? ?? 'user_${uid.substring(0, 8)}',
-        'name': profile['displayName'] as String? ?? 'کاربر ایرشوگرام',
-        'bio': profile['bio'] as String? ?? '',
-        'avatar': profile['photoUrl'] as String? ?? '',
-      };
-      _following = followingSnapshot.docs.map((doc) => doc.id).toList();
-      _loading = false;
-    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw StateError('نشست کاربر پیدا نشد. دوباره وارد حساب شوید.');
+      }
+      final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final results = await Future.wait([userRef.get(), userRef.collection('following').get()]);
+      if (!mounted) return;
+      final profile = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final following = results[1] as QuerySnapshot<Map<String, dynamic>>;
+      final data = profile.data() ?? <String, dynamic>{};
+      setState(() {
+        _profile = {
+          'username': data['username'] as String? ?? 'user_${user.uid.substring(0, 8)}',
+          'name': data['displayName'] as String? ?? user.displayName ?? 'کاربر ایرشوگرام',
+          'bio': data['bio'] as String? ?? '',
+          'avatar': data['photoUrl'] as String? ?? user.photoURL ?? '',
+        };
+        _following = following.docs.map((doc) => doc.id).toList();
+        _loadError = null;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = 'بارگذاری اطلاعات حساب از Firebase انجام نشد. اتصال اینترنت و دسترسی Firestore را بررسی کنید.\n$error';
+        _loading = false;
+      });
+    }
   }
 
   Future<String> _keepFile(XFile picked) async {
@@ -324,7 +340,6 @@ class _MainShellState extends State<MainShell> {
             return;
           }
           _profile = {'name': name.text.trim(), 'username': u, 'bio': bio.text.trim(), 'avatar': _profile['avatar'] ?? ''};
-          await _store.saveProfile(_profile);
           final uid = FirebaseAuth.instance.currentUser!.uid;
           await FirebaseFirestore.instance.collection('users').doc(uid).update({
             'username': u,
@@ -614,6 +629,25 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loadError != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_outlined, size: 48, color: _igGrey),
+                const SizedBox(height: 14),
+                Text(_loadError!, textAlign: TextAlign.center),
+                const SizedBox(height: 14),
+                FilledButton(onPressed: () { setState(() { _loading = true; }); _load(); }, child: const Text('تلاش دوباره')),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final pages = [_homePage(), _searchPage(), _messagesPage(), _reelsPage(), _profilePage()];
     return Scaffold(
       appBar: AppBar(
