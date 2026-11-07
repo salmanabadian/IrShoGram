@@ -622,7 +622,7 @@ class _MainShellState extends State<MainShell> {
           style: TextStyle(fontSize: _tab == 0 ? 27 : 19, fontWeight: FontWeight.w800, fontStyle: _tab == 0 ? FontStyle.italic : FontStyle.normal, letterSpacing: _tab == 0 ? -.9 : 0, color: _igBlack)),
         centerTitle: true,
         leading: _tab == 0 ? IconButton(tooltip: 'اعلان‌ها', onPressed: _showNotifications, icon: const Icon(Icons.favorite_border, color: _igBlack, size: 27)) : null,
-        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: () => OnlinePostComposer.create(context), icon: const Icon(Icons.add, size: 29, color: _igBlack))] : null,
+        actions: _tab == 0 ? [IconButton(tooltip: 'ایجاد', onPressed: widget.useFirebase ? () => OnlinePostComposer.create(context) : _createMenu, icon: const Icon(Icons.add, size: 29, color: _igBlack))] : null,
       ),
       body: Directionality(textDirection: TextDirection.rtl, child: IndexedStack(index: _tab, children: pages)),
       bottomNavigationBar: SafeArea(top: false, child: Container(
