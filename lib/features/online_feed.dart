@@ -1,0 +1,313 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
+import 'package:uuid/uuid.dart';
+
+const _blue = Color(0xFF0095F6);
+const _ink = Color(0xFF262626);
+const _muted = Color(0xFF8E8E8E);
+
+class OnlineFeedPage extends StatelessWidget {
+  const OnlineFeedPage({super.key, this.onCreatePost});
+  final VoidCallback? onCreatePost;
+
+  @override
+  Widget build(BuildContext context) {
+    final stream = FirebaseFirestore.instance.collection('posts')
+        .orderBy('createdAt', descending: true).limit(50).snapshots();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: stream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('بارگذاری پست‌ها از سرور انجام نشد.\n${snapshot.error}', textAlign: TextAlign.center),
+          ));
+        }
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final docs = snapshot.data!.docs;
+        if (docs.isEmpty) {
+          return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.photo_library_outlined, size: 54, color: _muted),
+            const SizedBox(height: 14),
+            const Text('هنوز پستی منتشر نشده است.', style: TextStyle(fontWeight: FontWeight.w600, color: _ink)),
+            const SizedBox(height: 6),
+            const Text('اولین عکس یا ویدیوی خود را به اشتراک بگذارید.', style: TextStyle(color: _muted)),
+            const SizedBox(height: 14),
+            FilledButton(onPressed: onCreatePost, child: const Text('ایجاد پست')),
+          ]));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 12),
+          itemCount: docs.length,
+          itemBuilder: (context, index) => _OnlinePostCard(post: docs[index]),
+        );
+      },
+    );
+  }
+}
+
+class _OnlinePostCard extends StatelessWidget {
+  const _OnlinePostCard({required this.post});
+  final QueryDocumentSnapshot<Map<String, dynamic>> post;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = post.data();
+    final uid = data['authorId'] as String? ?? '';
+    final mediaUrl = data['mediaUrl'] as String? ?? '';
+    final isVideo = data['mediaType'] == 'video';
+    final created = data['createdAt'];
+    final date = created is Timestamp ? created.toDate() : DateTime.now();
+    final userFuture = FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Row(children: [
+          FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            future: userFuture,
+            builder: (context, user) {
+              final name = user.data?.data()?['username'] as String? ?? 'کاربر';
+              return CircleAvatar(radius: 17, backgroundColor: const Color(0xFFEAF5FF),
+                child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(color: _blue, fontWeight: FontWeight.bold)));
+            },
+          ),
+          const SizedBox(width: 9),
+          Expanded(child: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            future: userFuture,
+            builder: (context, user) {
+              final name = user.data?.data()?['username'] as String? ?? 'کاربر ایرشوگرام';
+              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _ink)),
+                Text(_relativeTime(date), style: const TextStyle(fontSize: 11, color: _muted)),
+              ]);
+            },
+          )),
+          if (uid == FirebaseAuth.instance.currentUser?.uid)
+            PopupMenuButton<String>(
+              onSelected: (value) async {
+                if (value == 'delete') {
+                  await FirebaseFirestore.instance.collection('posts').doc(post.id).delete();
+                }
+              },
+              itemBuilder: (_) => const [PopupMenuItem(value: 'delete', child: Text('حذف پست'))],
+            ),
+        ]),
+      ),
+      if (mediaUrl.isNotEmpty)
+        AspectRatio(
+          aspectRatio: 1,
+          child: isVideo ? _NetworkPostVideo(url: mediaUrl) : Image.network(
+            mediaUrl, fit: BoxFit.cover,
+            loadingBuilder: (context, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator()),
+            errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFEFEFEF), child: Center(child: Icon(Icons.broken_image_outlined, size: 48))),
+          ),
+        )
+      else
+        const AspectRatio(aspectRatio: 1, child: ColoredBox(color: Color(0xFFEFEFEF), child: Center(child: Icon(Icons.broken_image_outlined)))),
+      _OnlinePostActions(postId: post.id, authorId: uid, caption: data['caption'] as String? ?? ''),
+      const Divider(height: 1, color: Color(0xFFDBDBDB)),
+    ]);
+  }
+}
+
+class _OnlinePostActions extends StatelessWidget {
+  const _OnlinePostActions({required this.postId, required this.authorId, required this.caption});
+  final String postId;
+  final String authorId;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final likes = FirebaseFirestore.instance.collection('posts').doc(postId).collection('likes');
+    final myLike = likes.doc(uid).snapshots();
+    final likeCount = likes.snapshots();
+    final comments = FirebaseFirestore.instance.collection('posts').doc(postId).collection('comments');
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
+        child: Row(children: [
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: myLike,
+            builder: (context, mine) => IconButton(
+              onPressed: () async {
+                final ref = likes.doc(uid);
+                if (mine.data?.exists == true) {
+                  await ref.delete();
+                } else {
+                  await ref.set({'createdAt': FieldValue.serverTimestamp()});
+                }
+              },
+              icon: Icon(mine.data?.exists == true ? Icons.favorite : Icons.favorite_border,
+                color: mine.data?.exists == true ? Colors.red : _ink, size: 27),
+            ),
+          ),
+          IconButton(onPressed: () => _showComments(context, comments), icon: const Icon(Icons.mode_comment_outlined, color: _ink, size: 25)),
+          const Spacer(),
+          IconButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('اشتراک‌گذاری پست به‌زودی اضافه می‌شود.'))),
+            icon: const Icon(Icons.send_outlined, color: _ink, size: 25)),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: likeCount,
+          builder: (context, snapshot) => Text('${snapshot.data?.docs.length ?? 0} پسند',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: _ink)),
+        ),
+      ),
+      if (caption.isNotEmpty)
+        Padding(padding: const EdgeInsets.fromLTRB(14, 5, 14, 12), child: Text(caption)),
+      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: comments.orderBy('createdAt', descending: true).limit(1).snapshots(),
+        builder: (context, snapshot) {
+          final count = snapshot.data?.docs.length ?? 0;
+          return count == 0 ? const SizedBox.shrink() : Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            child: InkWell(onTap: () => _showComments(context, comments),
+              child: const Text('مشاهده دیدگاه‌ها', style: TextStyle(color: _muted, fontSize: 13))),
+          );
+        },
+      ),
+    ]);
+  }
+
+  Future<void> _showComments(BuildContext context, CollectionReference<Map<String, dynamic>> comments) async {
+    final controller = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context, isScrollControlled: true, showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(sheetContext).viewInsets.bottom + 16),
+        child: SizedBox(height: 420, child: Column(children: [
+          const Text('دیدگاه‌ها', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 10),
+          Expanded(child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: comments.orderBy('createdAt', descending: true).limit(50).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              if (snapshot.data!.docs.isEmpty) return const Center(child: Text('هنوز دیدگاهی ثبت نشده است.'));
+              return ListView(children: snapshot.data!.docs.map((doc) {
+                final value = doc.data();
+                return ListTile(dense: true, leading: const CircleAvatar(child: Icon(Icons.person, size: 18)),
+                  title: Text(value['text'] as String? ?? ''));
+              }).toList());
+            },
+          )),
+          Row(children: [
+            Expanded(child: TextField(controller: controller, maxLength: 2000, decoration: const InputDecoration(hintText: 'دیدگاه بنویسید...', counterText: ''))),
+            IconButton(icon: const Icon(Icons.send), onPressed: () async {
+              final text = controller.text.trim();
+              if (text.isEmpty) return;
+              final user = FirebaseAuth.instance.currentUser!;
+              await comments.add({'authorId': user.uid, 'text': text, 'createdAt': FieldValue.serverTimestamp()});
+              controller.clear();
+            }),
+          ]),
+        ])),
+      ),
+    );
+    controller.dispose();
+  }
+}
+
+class _NetworkPostVideo extends StatefulWidget {
+  const _NetworkPostVideo({required this.url});
+  final String url;
+  @override
+  State<_NetworkPostVideo> createState() => _NetworkPostVideoState();
+}
+
+class _NetworkPostVideoState extends State<_NetworkPostVideo> {
+  VideoPlayerController? _controller;
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) { if (mounted) setState(() {}); });
+  }
+  @override
+  void dispose() { _controller?.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) {
+      return const ColoredBox(color: Colors.black, child: Center(child: CircularProgressIndicator(color: Colors.white)));
+    }
+    return GestureDetector(
+      onTap: () => setState(() => controller.value.isPlaying ? controller.pause() : controller.play()),
+      child: FittedBox(fit: BoxFit.cover, child: SizedBox(
+        width: controller.value.size.width, height: controller.value.size.height,
+        child: VideoPlayer(controller),
+      )),
+    );
+  }
+}
+
+String _relativeTime(DateTime date) {
+  final difference = DateTime.now().difference(date);
+  if (difference.inMinutes < 1) return 'همین الان';
+  if (difference.inHours < 1) return '${difference.inMinutes} دقیقه پیش';
+  if (difference.inDays < 1) return '${difference.inHours} ساعت پیش';
+  return '${difference.inDays} روز پیش';
+}
+
+class OnlinePostComposer {
+  static Future<void> create(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickMedia(imageQuality: 88, maxWidth: 2400);
+    if (picked == null || !context.mounted) return;
+    final isVideo = picked.mimeType?.startsWith('video/') == true;
+    final caption = TextEditingController();
+    final accepted = await showModalBottomSheet<bool>(
+      context: context, isScrollControlled: true, showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(sheetContext).viewInsets.bottom + 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Text('انتشار پست', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          if (!isVideo) ClipRRect(borderRadius: BorderRadius.circular(12),
+            child: Image.file(File(picked.path), height: 200, fit: BoxFit.cover)),
+          if (isVideo) const ListTile(leading: Icon(Icons.video_file), title: Text('ویدیوی انتخاب‌شده')),
+          TextField(controller: caption, maxLength: 2200, maxLines: 3,
+            decoration: const InputDecoration(hintText: 'برای این پست توضیحی بنویسید...', border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          FilledButton(onPressed: () => Navigator.pop(sheetContext, true), child: const Text('انتشار')),
+        ]),
+      ),
+    );
+    if (accepted != true || !context.mounted) { caption.dispose(); return; }
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('در حال بارگذاری رسانه و انتشار پست...')));
+    try {
+      final extension = picked.name.contains('.') ? picked.name.split('.').last.toLowerCase() : (isVideo ? 'mp4' : 'jpg');
+      final path = 'posts/${user.uid}/${const Uuid().v4()}.$extension';
+      final storageRef = FirebaseStorage.instance.ref().child(path);
+      final metadata = SettableMetadata(contentType: picked.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'));
+      await storageRef.putFile(File(picked.path), metadata);
+      final url = await storageRef.getDownloadURL();
+      final post = FirebaseFirestore.instance.collection('posts').doc();
+      await post.set({
+        'authorId': user.uid,
+        'caption': caption.text.trim(),
+        'mediaUrl': url,
+        'mediaType': isVideo ? 'video' : 'image',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      messenger.showSnackBar(const SnackBar(content: Text('پست با موفقیت در سرور منتشر شد.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('انتشار پست ناموفق بود: $error')));
+    } finally {
+      caption.dispose();
+    }
+  }
+}
