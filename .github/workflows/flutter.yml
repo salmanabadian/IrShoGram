@@ -51,6 +51,34 @@ jobs:
             -keystore "$HOME/.android/debug.keystore" \
             -storepass android \
             -alias androiddebugkey | grep -E 'SHA1:|SHA256:'
+      - name: Prepare placeholder Firebase config for local preview build
+        run: |
+          mkdir -p android/app
+          cat > android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "irshogram-local-preview",
+              "storage_bucket": "irshogram-local-preview.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "com.irshogram.app"
+                  }
+                },
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_AUTH"
+                  }
+                ]
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
       - name: Build local preview APK (no Google sign-in required)
         run: flutter build apk --release --dart-define=IRSHOGRAM_PREVIEW=true
       - name: Upload preview APK
