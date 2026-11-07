@@ -412,7 +412,7 @@ class _MainShellState extends State<MainShell> {
     final usersQuery = FirebaseFirestore.instance.collection('users')
         .orderBy('username')
         .startAt([query])
-        .endAt(['${query}\uf8ff'])
+        .endAt(['$query\uf8ff'])
         .limit(30);
     return Column(children: [
       Padding(padding: const EdgeInsets.fromLTRB(12, 10, 12, 8), child: SizedBox(height: 40, child: TextField(
