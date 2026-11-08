@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'google_sign_in_error_message.dart';
+
 class GoogleSignInScreen extends StatefulWidget {
   const GoogleSignInScreen({super.key});
 
@@ -83,8 +85,12 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
       setState(() {
         _busy = false;
         final description = error.description?.trim();
-        _error = 'خطای واقعی Google Sign-In: ${error.code.name}'
-            '${description == null || description.isEmpty ? '' : '\nتوضیح: $description'}';
+        final guidance = googleSignInErrorMessage(
+          code: error.code.name,
+          description: description,
+        );
+        _error = '$guidance\nکد فنی: ${error.code.name}'
+            '${description == null || description.isEmpty ? '' : '\nجزئیات: $description'}';
       });
     } catch (error) {
       if (!mounted) return;
