@@ -25,6 +25,30 @@ In Firebase Console:
    for local or CI builds.
 6. Confirm Firestore and Cloud Storage are enabled.
 
+## Google Sign-In troubleshooting
+
+The Android implementation of the Flutter `google_sign_in` plugin uses Android
+Credential Manager. The plugin is automatically included when the app depends on
+`google_sign_in`; do not add a second, manually pinned Credential Manager stack
+without first confirming a dependency-resolution problem.
+
+If the app reports
+`getCredentialAsync no provider dependencies found` or
+`providerConfigurationError`:
+
+1. Update Google Play Services and the Play Store on the Android device.
+2. Confirm that at least one Google account is added to the device's Android
+   account settings, then restart the device.
+3. If the provider error remains, verify the app package, Web OAuth client, and
+   SHA-1/SHA-256 fingerprints for the certificate that signed the exact APK
+   being installed. A CI-built APK can use a different debug certificate from a
+   local build.
+4. Re-download the Firebase Android configuration after correcting OAuth
+   fingerprints, then rebuild the APK.
+
+The plugin's official Android setup and troubleshooting notes are available at
+[google_sign_in_android](https://pub.dev/packages/google_sign_in_android).
+
 ## Local build
 
 After placing the correct configuration file:
