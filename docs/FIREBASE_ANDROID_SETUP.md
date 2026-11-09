@@ -66,13 +66,16 @@ keystore and protected signing configuration before distribution.
 
 ## GitHub Actions
 
-The workflow restores the private Android Firebase configuration from the repository
-Actions secret `FIREBASE_ANDROID_CONFIG_BASE64`. The secret must contain the
-Base64-encoded contents of the exact `google-services.json` file.
+The workflow restores the private Android Firebase configuration from either
+repository Actions secret:
 
-Never put the raw JSON, OAuth credentials, API keys, or signing material in source
-control, issues, or chat. When the secret is unavailable, CI can still run analysis
-and tests but intentionally skips the Firebase-configured APK build.
+- `FIREBASE_ANDROID_CONFIG_JSON`: the complete raw contents of the fresh
+  `google-services.json` file (recommended for users without a computer).
+- `FIREBASE_ANDROID_CONFIG_BASE64`: Base64-encoded contents of that file.
+
+Never put the JSON, OAuth credentials, API keys, or signing material in source
+control, issues, or chat. When neither secret is configured, CI can still run
+analysis and tests but intentionally skips the Firebase-configured APK build.
 
 ## Firebase backend deployment
 
