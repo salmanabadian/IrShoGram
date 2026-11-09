@@ -122,9 +122,41 @@ jobs:
           web_client_id = next((value for value in web_client_ids if value.endswith('.apps.googleusercontent.com')), '')
           if not web_client_id:
               raise SystemExit('The Firebase config has no valid Web OAuth client ID.')
+          # Verify the Android OAuth client matches the exact certificate used
+          # to sign this APK. A Web client alone is insufficient for Android sign-in.
+          import re
+          import subprocess
+          keytool_output = subprocess.check_output([
+              "keytool", "-list", "-v",
+              "-keystore", str(Path.home() / ".android/debug.keystore"),
+              "-storepass", "android",
+              "-alias", "androiddebugkey",
+          ], text=True)
+          sha1_match = re.search(r"SHA1:\\s*([0-9A-Fa-f:]+)", keytool_output)
+          if not sha1_match:
+              raise SystemExit("Could not read the Android APK signing certificate SHA-1.")
+          expected_sha1 = sha1_match.group(1).replace(":", "").upper()
+          android_clients = [
+              item for item in oauth_clients
+              if item.get("client_type") == 1
+              and item.get("android_info", {}).get("package_name") == "com.irshogram.app"
+          ]
+          matching_certificate = any(
+              item.get("android_info", {}).get("certificate_hash", "").replace(":", "").upper()
+              == expected_sha1
+              for item in android_clients
+          )
+          if not matching_certificate:
+              raise SystemExit(
+                  "Firebase has no Android OAuth client matching package com.irshogram.app "
+                  "and this APK signing SHA-1. Add the SHA-1 printed in the earlier "
+                  "signing-key step to the Android app in Firebase/Google Cloud, then "
+                  "download a fresh google-services.json and update FIREBASE_ANDROID_CONFIG_BASE64."
+              )
+
           with open(__import__('os').environ['GITHUB_ENV'], 'a') as env:
               env.write(f'GOOGLE_SERVER_CLIENT_ID={web_client_id}\n')
-          print('Firebase Android package and Web OAuth client ID are present.')
+          print('Firebase Android package, matching Android SHA-1 OAuth client, and Web OAuth client ID are present.')
           PY
       - name: Build Android APK
         if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
