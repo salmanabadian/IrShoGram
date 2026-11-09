@@ -132,7 +132,7 @@ jobs:
               "-storepass", "android",
               "-alias", "androiddebugkey",
           ], text=True)
-          sha1_match = re.search(r"SHA1:\\s*([0-9A-Fa-f:]+)", keytool_output)
+          sha1_match = re.search(r"SHA1:\s*([0-9A-Fa-f:]+)", keytool_output)
           if not sha1_match:
               raise SystemExit("Could not read the Android APK signing certificate SHA-1.")
           expected_sha1 = sha1_match.group(1).replace(":", "").upper()
