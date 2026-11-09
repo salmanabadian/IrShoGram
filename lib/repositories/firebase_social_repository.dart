@@ -304,8 +304,17 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
 
   @override
   Future<String> sendMessage(String conversationId, DirectMessage message) async {
+    if (conversationId.trim().isEmpty) {
+      throw ArgumentError.value(conversationId, 'conversationId', 'Must not be empty.');
+    }
+    if (message.senderId.trim().isEmpty) {
+      throw ArgumentError.value(message.senderId, 'senderId', 'Must not be empty.');
+    }
+
     final conversation = _db.collection('conversations').doc(conversationId);
-    final ref = conversation.collection('messages').doc(message.id);
+    // Always let Firestore allocate a valid unique document ID. Callers may
+    // construct DirectMessage with an empty ID because the backend owns IDs.
+    final ref = conversation.collection('messages').doc();
     await _db.runTransaction((transaction) async {
       transaction.set(ref, {
         ...message.toMap(),
