@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: irshogram-android-build
+  group: irshogram-android-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
