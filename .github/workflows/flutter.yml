@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FIREBASE_ANDROID_CONFIG_BASE64: ${{ secrets.FIREBASE_ANDROID_CONFIG_BASE64 }}
+      FIREBASE_ANDROID_CONFIG_JSON: ${{ secrets.FIREBASE_ANDROID_CONFIG_JSON }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -89,11 +90,15 @@ jobs:
           name: irshogram-preview-apk
           path: build/app/outputs/flutter-apk/app-release.apk
       - name: Restore Firebase Android configuration
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
+        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
         run: |
-          echo "$FIREBASE_ANDROID_CONFIG_BASE64" | base64 --decode > android/app/google-services.json
+          if [ -n "$FIREBASE_ANDROID_CONFIG_JSON" ]; then
+            printf '%s' "$FIREBASE_ANDROID_CONFIG_JSON" > android/app/google-services.json
+          else
+            printf '%s' "$FIREBASE_ANDROID_CONFIG_BASE64" | base64 --decode > android/app/google-services.json
+          fi
       - name: Validate Firebase Google Sign-In configuration
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
+        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
         run: |
           python3 - <<'PY'
           import json
@@ -168,5 +173,5 @@ jobs:
           name: irshogram-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
       - name: Explain skipped APK build
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 == '' }}
-        run: echo "APK build skipped. Add the repository secret FIREBASE_ANDROID_CONFIG_BASE64 to enable Firebase-configured Android builds."
+        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 == '' && env.FIREBASE_ANDROID_CONFIG_JSON == '' }}
+        run: echo "APK build skipped. Add repository secret FIREBASE_ANDROID_CONFIG_JSON (raw google-services.json contents) or FIREBASE_ANDROID_CONFIG_BASE64 to enable Firebase-configured Android builds."
