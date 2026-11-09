@@ -164,10 +164,10 @@ jobs:
           print('Firebase Android package, matching Android SHA-1 OAuth client, and Web OAuth client ID are present.')
           PY
       - name: Build Android APK
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
+        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
         run: flutter build apk --release --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
       - name: Upload APK
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' }}
+        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: irshogram-release-apk
