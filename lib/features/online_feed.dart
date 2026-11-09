@@ -10,6 +10,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/messaging.dart';
+import '../repositories/firebase_social_repository.dart';
+
 const _blue = Color(0xFF0095F6);
 const _ink = Color(0xFF262626);
 const _muted = Color(0xFF8E8E8E);
@@ -642,16 +645,19 @@ class _OnlineChatPageState extends State<OnlineChatPage> {
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final conversation = FirebaseFirestore.instance.collection('conversations').doc(widget.conversationId);
-      await conversation.collection('messages').add({
-        'senderId': uid,
-        'text': text,
-        'mediaUrl': null,
-        'createdAt': FieldValue.serverTimestamp(),
-        'type': 'text',
-      });
-      await conversation.update({'updatedAt': FieldValue.serverTimestamp()});
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        throw StateError('برای ارسال پیام باید وارد حساب شوید.');
+      }
+      await FirebaseSocialRepository().sendMessage(
+        widget.conversationId,
+        DirectMessage(
+          id: '',
+          senderId: uid,
+          text: text,
+          createdAt: DateTime.now(),
+        ),
+      );
       _controller.clear();
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ارسال پیام ناموفق بود: $error')));
