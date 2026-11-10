@@ -154,17 +154,17 @@ jobs:
               for item in android_clients
           )
           if not matching_certificate:
-              raise SystemExit(
-                  "Firebase has no Android OAuth client matching package com.irshogram.app "
-                  "and this CI APK signing SHA-1. Add the SHA-1 printed in the 'Create signing key once and print its fingerprints' step to "
-              "Firebase Console > Project settings > Your apps > com.irshogram.app > SHA certificate fingerprints. "
-              "Keep existing fingerprints, then download a fresh google-services.json and replace the repository Actions secret "
-              "FIREBASE_ANDROID_CONFIG_JSON (recommended) or FIREBASE_ANDROID_CONFIG_BASE64."
+              print(
+                  "WARNING: Firebase has no Android OAuth client matching this CI APK signing SHA-1. "
+                  "The Firebase APK will still be built so Firebase Phone test authentication can be tested. "
+                  "Google Sign-In may not work until this SHA-1 is registered and google-services.json is refreshed."
               )
+          else:
+              print("Matching Android OAuth certificate is configured.")
 
           with open(__import__('os').environ['GITHUB_ENV'], 'a') as env:
               env.write(f'GOOGLE_SERVER_CLIENT_ID={web_client_id}\n')
-          print('Firebase Android package, matching Android SHA-1 OAuth client, and Web OAuth client ID are present.')
+          print('Firebase Android package and Web OAuth client ID are present.')
           PY
       - name: Build Android APK
         if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
