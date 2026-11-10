@@ -88,11 +88,17 @@ repository Actions secret:
 - `FIREBASE_ANDROID_CONFIG_BASE64`: Base64-encoded contents of that file.
 
 Only pushes and manual workflow runs on `firebase-foundation` perform the
-Firebase-configured APK build and signing-certificate check. Pull-request runs
-still execute Flutter analysis/tests and build the preview APK, but skip the
-Firebase APK step because GitHub gives pull-request workflows a different cache
-scope from branch pushes. When registering the Android SHA-1, use the fingerprint
-printed by a push or manual run on `firebase-foundation`, not a pull-request run.
+Firebase-configured APK build. Pull-request runs still execute Flutter
+analysis/tests and build the preview APK, but skip the Firebase APK step because
+GitHub gives pull-request workflows a different cache scope from branch pushes.
+The workflow requires the Android package and Web OAuth client. A missing
+matching Android SHA-1 is now a warning rather than a build blocker, so the
+phone-test APK can be produced while Google Sign-In certificate setup is pending.
+Google Sign-In itself may still fail until the exact SHA-1 printed by a push or
+manual run on `firebase-foundation` is registered in Firebase and a fresh
+`google-services.json` is saved in the Actions secret. The Firebase-configured
+testing APK also enables the temporary phone test screen; do not distribute it
+as a production release.
 
 Never put the JSON, OAuth credentials, API keys, or signing material in source
 control, issues, or chat. When neither secret is configured, CI can still run
