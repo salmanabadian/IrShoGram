@@ -24,7 +24,7 @@ class _PhoneTestSignInScreenState extends State<PhoneTestSignInScreen> {
 
   Future<void> _requestCode() async {
     final phone = _phoneController.text.trim();
-    if (!RegExp(r'^\\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
+    if (!RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
       setState(() => _message = 'شماره را با کد کشور و بدون فاصله وارد کنید؛ مانند +98912XXXXXXX');
       return;
     }
