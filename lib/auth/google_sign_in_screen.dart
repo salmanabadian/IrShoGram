@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'google_sign_in_error_message.dart';
+import 'phone_test_sign_in_screen.dart';
+
+const _enablePhoneTestLogin = bool.fromEnvironment(
+  'IRSHOGRAM_ENABLE_PHONE_TEST_LOGIN',
+  defaultValue: false,
+);
 
 class GoogleSignInScreen extends StatefulWidget {
   const GoogleSignInScreen({super.key});
@@ -191,9 +197,26 @@ class _GoogleSignInScreenState extends State<GoogleSignInScreen> {
                               ),
                       ),
                     ),
+                    if (_enablePhoneTestLogin) ...[
+                      SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          onPressed: _busy ? null : () {
+                            Navigator.of(context).push(MaterialPageRoute<void>(
+                              builder: (_) => const PhoneTestSignInScreen(),
+                            ));
+                          },
+                          icon: const Icon(Icons.phone_android),
+                          label: const Text('ورود آزمایشی با شماره'),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
                     const SizedBox(height: 18),
                     const Text(
-                      'ورود و ثبت‌نام فقط با حساب Google انجام می‌شود.',
+                      _enablePhoneTestLogin
+                          ? 'ورود اصلی با Google است؛ ورود با شماره فقط برای آزمایش دو حساب فعال شده است.'
+                          : 'ورود و ثبت‌نام فقط با حساب Google انجام می‌شود.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
