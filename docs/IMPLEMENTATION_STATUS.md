@@ -1,6 +1,6 @@
 # IrShoGram implementation status
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-10
 Active development branch: `firebase-foundation`
 Default branch: `main`
 Open pull request: #1 (not merged)
@@ -35,6 +35,24 @@ Artifact name: `irshogram-release-apk`.
 This confirms a CI build artifact was produced; it does not confirm installation or
 runtime behavior on a physical device. Current authentication and feature changes
 must pass a fresh workflow run as well.
+
+## Latest CI result (2026-11-10)
+
+GitHub Actions run [#169](https://github.com/salmanabadian/IrShoGram/actions/runs/42686377960)
+completed with a Firebase OAuth certificate-validation failure:
+- Flutter dependency installation, static analysis, and tests passed.
+- The preview APK built and uploaded successfully.
+- The protected Firebase configuration was restored, but it did not contain an
+  Android OAuth client matching the signing certificate used by the branch build.
+- The Firebase-configured release APK was therefore not built or uploaded.
+
+Earlier pull-request and branch-push runs used different cached debug signing
+certificates because GitHub cache scopes differ by event. The workflow now skips
+Firebase APK validation on pull requests; use the SHA-1 from a push or manual run
+on `firebase-foundation`. Add it to the registered Firebase Android app, download
+a fresh `google-services.json`, and update either protected Actions secret above.
+No Firebase rules were deployed and no physical-device login was verified by this
+CI run.
 
 ## Authentication scope
 
