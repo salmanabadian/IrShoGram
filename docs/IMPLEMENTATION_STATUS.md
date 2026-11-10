@@ -56,10 +56,18 @@ CI run.
 
 ## Authentication scope
 
-Google Sign-In is the only supported sign-in path in the current app scope.
-Phone authentication is intentionally excluded. Firebase Console Google provider
-configuration and signing fingerprints still require verification on the actual
-Firebase project and device.
+Google Sign-In remains the normal sign-in path. A temporary Firebase Phone
+Authentication screen is now available only when the Firebase test APK is built
+with `IRSHOGRAM_ENABLE_PHONE_TEST_LOGIN=true`. The preview APK does not expose
+the phone option. Configure two fixed test numbers and codes under Firebase
+Authentication → Phone → Phone numbers for testing. Firebase does not send SMS
+for those configured test numbers, so they do not incur SMS charges. This does
+not verify real SMS delivery; numbers not on the test list may send billable SMS.
+The Google provider remains enabled and unchanged.
+
+The sign-out action is present in account settings. Physical-device testing is
+still required for Google sign-in, phone test sign-in, and signing out/in as the
+second test account.
 
 ## Known incomplete work
 
@@ -80,7 +88,7 @@ Firebase project and device.
 
 ## Immediate next work
 
-1. Finish Google-only authentication UX, sign-out, account deletion, and session tests.
+1. Test Google and the temporary Firebase test-phone flow on a physical device; complete secure account deletion and verify sign-out/session behavior.
 2. Remove remaining local/demo data paths from production-facing screens.
 3. Complete real saved posts, notification flow, story views/replies, message attachments/read receipts, and multi-account support.
 4. Harden and test privacy/security rules; add trusted backend functions.
