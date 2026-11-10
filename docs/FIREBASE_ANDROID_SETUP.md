@@ -7,17 +7,31 @@ The Firebase Android app's `google-services.json` must use this exact package na
 and be placed at `android/app/google-services.json`. This private file is excluded
 from Git and must never be committed or pasted into chat.
 
-## Google-only authentication
+## Authentication and temporary phone testing
 
-The current authentication flow uses Google Sign-In with Firebase Authentication.
-Phone-number authentication is intentionally out of scope and must not be enabled
-or referenced by the app's current sign-in flow.
+Google Sign-In remains the normal sign-in method. A temporary Firebase Phone
+Authentication screen is included only in the Firebase-configured testing APK,
+behind the `IRSHOGRAM_ENABLE_PHONE_TEST_LOGIN` build flag. The preview APK and
+normal builds do not expose this option. Do not enable this flag for a public
+production release.
 
-In Firebase Console:
+For two-account testing without SMS charges:
 
 1. Open the IrShoGram Firebase project.
-2. Go to Authentication → Sign-in method and enable **Google** only for the
-   current app flow. Select a support email and save.
+2. Go to Authentication → Sign-in method and enable **Google** and **Phone**.
+3. In the Phone provider settings, find **Phone numbers for testing**.
+4. Add two phone numbers in international E.164 format and assign each a
+   different six-digit test code. Use numbers you control; never share the
+   numbers or codes in source control or chat.
+5. Install the Firebase-configured testing APK. Choose **ورود آزمایشی با شماره**,
+   enter one registered test number, request its code, then enter the fixed code.
+6. Sign out before testing the second account, then repeat with the second number.
+
+Firebase's configured test numbers use the fixed codes without sending SMS, so
+they do not incur SMS charges. This tests Firebase phone sign-in and separate
+account identities, but does not test real SMS delivery. Any number not listed
+as a test number may trigger a real SMS and possible charges. Keep Google enabled
+and use Google for normal sign-in.
 3. Confirm the registered Android app package is `com.irshogram.app`.
 4. Register the debug and release SHA-1 and SHA-256 signing fingerprints.
    Google Sign-In depends on matching fingerprints and OAuth client configuration.
