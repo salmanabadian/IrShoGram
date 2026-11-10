@@ -34,11 +34,13 @@ jobs:
       - name: Run tests
         run: flutter test
       - name: Restore stable Android debug signing key
+        if: ${{ github.event_name != 'pull_request' }}
         uses: actions/cache@v4
         with:
           path: ~/.android/debug.keystore
           key: irshogram-android-debug-keystore-v1
       - name: Create signing key once and print its fingerprints
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           mkdir -p "$HOME/.android"
           if [ ! -f "$HOME/.android/debug.keystore" ]; then
@@ -90,7 +92,7 @@ jobs:
           name: irshogram-preview-apk
           path: build/app/outputs/flutter-apk/app-release.apk
       - name: Restore Firebase Android configuration
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
         run: |
           if [ -n "$FIREBASE_ANDROID_CONFIG_JSON" ]; then
             printf '%s' "$FIREBASE_ANDROID_CONFIG_JSON" > android/app/google-services.json
@@ -98,7 +100,7 @@ jobs:
             printf '%s' "$FIREBASE_ANDROID_CONFIG_BASE64" | base64 --decode > android/app/google-services.json
           fi
       - name: Validate Firebase Google Sign-In configuration
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
         run: |
           python3 - <<'PY'
           import json
@@ -154,9 +156,10 @@ jobs:
           if not matching_certificate:
               raise SystemExit(
                   "Firebase has no Android OAuth client matching package com.irshogram.app "
-                  "and this APK signing SHA-1. Add the SHA-1 printed in the earlier "
-                  "signing-key step to the Android app in Firebase/Google Cloud, then "
-                  "download a fresh google-services.json and update FIREBASE_ANDROID_CONFIG_BASE64."
+                  "and this CI APK signing SHA-1. Add the SHA-1 printed in the 'Create signing key once and print its fingerprints' step to "
+              "Firebase Console > Project settings > Your apps > com.irshogram.app > SHA certificate fingerprints. "
+              "Keep existing fingerprints, then download a fresh google-services.json and replace the repository Actions secret "
+              "FIREBASE_ANDROID_CONFIG_JSON (recommended) or FIREBASE_ANDROID_CONFIG_BASE64."
               )
 
           with open(__import__('os').environ['GITHUB_ENV'], 'a') as env:
@@ -164,14 +167,17 @@ jobs:
           print('Firebase Android package, matching Android SHA-1 OAuth client, and Web OAuth client ID are present.')
           PY
       - name: Build Android APK
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
         run: flutter build apk --release --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
       - name: Upload APK
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '' }}
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
         uses: actions/upload-artifact@v4
         with:
           name: irshogram-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Explain Firebase APK validation is push-only
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "Firebase-configured APK validation is intentionally skipped for pull requests because GitHub Actions cache scopes can give PR builds a different signing key. Pushes and manual runs on firebase-foundation perform the signing-certificate check and Firebase APK build. The preview APK is not configured for Google Sign-In."
       - name: Explain skipped APK build
-        if: ${{ env.FIREBASE_ANDROID_CONFIG_BASE64 == '' && env.FIREBASE_ANDROID_CONFIG_JSON == '' }}
+        if: ${{ github.event_name != 'pull_request' && env.FIREBASE_ANDROID_CONFIG_BASE64 == '' && env.FIREBASE_ANDROID_CONFIG_JSON == '' }}
         run: echo "APK build skipped. Add repository secret FIREBASE_ANDROID_CONFIG_JSON (raw google-services.json contents) or FIREBASE_ANDROID_CONFIG_BASE64 to enable Firebase-configured Android builds."
