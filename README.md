@@ -33,9 +33,17 @@ Phone-number authentication is intentionally excluded from the current scope.
 ## Build checks
 
 The GitHub Actions workflow runs `flutter pub get`, `flutter analyze`, and
-`flutter test`. It builds and uploads a release APK when the protected repository
-secret `FIREBASE_ANDROID_CONFIG_BASE64` is available. Never commit Firebase client
-configuration or signing secrets.
+`flutter test`. Pull-request runs also build a preview APK, but intentionally skip
+Firebase signing-certificate validation because GitHub scopes Actions caches
+differently for pull requests and branch pushes. Pushes and manual runs on
+`firebase-foundation` perform the Firebase configuration check and build the
+Firebase-configured release APK when either protected repository secret is set:
+
+- `FIREBASE_ANDROID_CONFIG_JSON`: raw contents of the fresh
+  `google-services.json` file (recommended).
+- `FIREBASE_ANDROID_CONFIG_BASE64`: Base64-encoded contents of that file.
+
+Never commit Firebase client configuration, OAuth credentials, or signing keys.
 
 See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) and
 [docs/FIREBASE_ANDROID_SETUP.md](docs/FIREBASE_ANDROID_SETUP.md) for current status
