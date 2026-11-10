@@ -73,6 +73,13 @@ repository Actions secret:
   `google-services.json` file (recommended for users without a computer).
 - `FIREBASE_ANDROID_CONFIG_BASE64`: Base64-encoded contents of that file.
 
+Only pushes and manual workflow runs on `firebase-foundation` perform the
+Firebase-configured APK build and signing-certificate check. Pull-request runs
+still execute Flutter analysis/tests and build the preview APK, but skip the
+Firebase APK step because GitHub gives pull-request workflows a different cache
+scope from branch pushes. When registering the Android SHA-1, use the fingerprint
+printed by a push or manual run on `firebase-foundation`, not a pull-request run.
+
 Never put the JSON, OAuth credentials, API keys, or signing material in source
 control, issues, or chat. When neither secret is configured, CI can still run
 analysis and tests but intentionally skips the Firebase-configured APK build.
