@@ -156,7 +156,7 @@ jobs:
           if not matching_certificate:
               print(
                   "WARNING: Firebase has no Android OAuth client matching this CI APK signing SHA-1. "
-                  "The Firebase APK will still be built so Firebase Phone test authentication can be tested. "
+                  "The Firebase-configured release APK will still be built. "
                   "Google Sign-In may not work until this SHA-1 is registered and google-services.json is refreshed."
               )
           else:
@@ -168,7 +168,7 @@ jobs:
           PY
       - name: Build Android APK
         if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
-        run: flutter build apk --release --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID" --dart-define=IRSHOGRAM_ENABLE_PHONE_TEST_LOGIN=true
+        run: flutter build apk --release --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
       - name: Upload APK
         if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
         uses: actions/upload-artifact@v4
