@@ -1,6 +1,6 @@
 # IrShoGram implementation status
 
-Last reviewed: 2026-11-10
+Last reviewed: 2026-11-11
 Active development branch: `firebase-foundation`
 Default branch: `main`
 Open pull request: #1 (not merged)
@@ -19,59 +19,36 @@ Open pull request: #1 (not merged)
 - Online post/story/reel publishing and online story/reel display are implemented in the current branch.
 - User search/following, profile editing, profile post grid, and text messaging have initial Firebase-backed implementations.
 - Firestore rules, Storage rules, and index configuration files are present.
-- The GitHub Actions workflow runs dependency installation, analysis, tests, and conditionally builds/uploads a release APK.
+- The GitHub Actions workflow runs dependency installation, analysis, tests, and conditionally builds/uploads release APK artifacts.
 
 ## CI and APK evidence
 
-A GitHub Actions run on 2026-11-07 completed successfully for the Firebase foundation branch:
-- Flutter dependency installation: passed
-- `flutter analyze`: passed
-- `flutter test`: passed
-- Firebase Android configuration restore: passed
-- Release APK build: passed
-- APK artifact upload: passed
+Latest verified GitHub Actions runs on 2026-11-10:
 
-Artifact name: `irshogram-release-apk`.
-This confirms a CI build artifact was produced; it does not confirm installation or
-runtime behavior on a physical device. Current authentication and feature changes
-must pass a fresh workflow run as well.
+- [Run #189 — branch push](https://github.com/salmanabadian/IrShoGram/actions/runs/42864251206):
+  Flutter dependency installation, `flutter analyze`, `flutter test`, Firebase
+  configuration restore/validation, release APK build, and artifact upload all passed.
+  Artifact: `irshogram-release-apk`.
+- [Run #190 — pull request](https://github.com/salmanabadian/IrShoGram/actions/runs/42864264639):
+  dependency installation, analysis, tests, and preview APK build/upload passed.
+  The Firebase-configured APK step is intentionally skipped on pull requests.
 
-## Latest CI result (2026-11-10)
-
-GitHub Actions run [#169](https://github.com/salmanabadian/IrShoGram/actions/runs/42686377960)
-completed with a Firebase OAuth certificate-validation failure:
-- Flutter dependency installation, static analysis, and tests passed.
-- The preview APK built and uploaded successfully.
-- The protected Firebase configuration was restored, but it did not contain an
-  Android OAuth client matching the signing certificate used by the branch build.
-- The Firebase-configured release APK was therefore not built or uploaded.
-
-Earlier pull-request and branch-push runs used different cached debug signing
-certificates because GitHub cache scopes differ by event. The workflow now skips
-Firebase APK validation on pull requests; use the SHA-1 from a push or manual run
-on `firebase-foundation`. Add it to the registered Firebase Android app, download
-a fresh `google-services.json`, and update either protected Actions secret above.
-No Firebase rules were deployed and no physical-device login was verified by this
-CI run.
+These results prove CI produced APK artifacts; they do not prove Google login,
+media upload, or cross-device behavior on a physical device. No Firebase rules
+were deployed and no physical-device login was verified by these runs.
 
 ## Authentication scope
 
-Google Sign-In remains the normal sign-in path. A temporary Firebase Phone
-Authentication screen is now available only when the Firebase test APK is built
-with `IRSHOGRAM_ENABLE_PHONE_TEST_LOGIN=true`. The preview APK does not expose
-the phone option. Configure two fixed test numbers and codes under Firebase
-Authentication → Phone → Phone numbers for testing. Firebase does not send SMS
-for those configured test numbers, so they do not incur SMS charges. This does
-not verify real SMS delivery; numbers not on the test list may send billable SMS.
-The Google provider remains enabled and unchanged.
-
+Google Sign-In is the only supported authentication method. The sign-in screen
+obtains a Google ID token and exchanges it for a Firebase credential. Phone/SMS
+authentication is intentionally excluded from the app and its CI APK builds.
 The sign-out action is present in account settings. Physical-device testing is
-still required for Google sign-in, phone test sign-in, and signing out/in as the
-second test account.
+still required for Google sign-in, session restoration, sign-out, and signing in
+with a second Google account on another device.
 
 ## Known incomplete work
 
-- Account sign-out and secure account deletion need completion and device tests.
+- Secure account deletion needs completion and device tests; sign-out is present but still needs device verification.
 - Username uniqueness is not yet enforced by a trusted backend transaction.
 - Multiple simultaneous account sessions and safe account switching are not implemented.
 - Saved-post UI still relies on local data in parts of the app.
@@ -88,7 +65,7 @@ second test account.
 
 ## Immediate next work
 
-1. Test Google and the temporary Firebase test-phone flow on a physical device; complete secure account deletion and verify sign-out/session behavior.
+1. Test Google sign-in, session restoration, and sign-out on a physical Android device; then verify two separate Google accounts on two devices.
 2. Remove remaining local/demo data paths from production-facing screens.
 3. Complete real saved posts, notification flow, story views/replies, message attachments/read receipts, and multi-account support.
 4. Harden and test privacy/security rules; add trusted backend functions.
