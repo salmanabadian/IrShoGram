@@ -33,10 +33,10 @@ The target is a real multi-user service, not a static UI demo. Features must wor
 - Choose one canonical Android application ID and align Gradle namespace/applicationId and Kotlin package/path.
 - Configure FlutterFire dependencies and Android Google Services plugin using mutually compatible stable versions.
 - Initialize Firebase before `runApp`, with clear configuration errors rather than silently falling back to demo mode.
-- Add an authentication/session layer using Firebase Authentication phone OTP.
-- Handle OTP lifecycle correctly: verification ID, resend timeout, invalid/expired code, quota/provider errors, cancellation, sign-out, and auth-state restoration.
+- Add a Google-only authentication/session layer using Firebase Authentication and Google Sign-In.
+- Handle Google OAuth token acquisition, cancellation, provider/configuration errors, sign-out, and auth-state restoration.
 - Add user profile creation after successful first sign-in; enforce unique usernames transactionally.
-- Add emulator/test-phone support for development.
+- Add Firebase Authentication emulator coverage for auth-state and profile bootstrap; do not add phone/SMS sign-in.
 - Keep Firebase configuration files and signing secrets out of public commits.
 - Document required Firebase Console steps: enable Phone provider, register the exact Android package, add debug/release SHA fingerprints, and verify the authorized domain/app configuration as applicable.
 - Do not claim SMS works until an actual Android device test completes end-to-end.
@@ -56,7 +56,7 @@ Required real operations:
 
 ### Phase 3 — Complete app surfaces and interaction parity
 Implement and test:
-- phone onboarding, profile setup, account recovery/session management
+- Google sign-in onboarding, profile setup, and session management (Google account recovery remains with Google)
 - home feed and ranking/pagination
 - story composer/viewer/replies/highlights
 - post composer with image/video selection, crop/edit tools, carousel, drafts
@@ -89,9 +89,9 @@ Implement and test:
 
 ## Immediate blocker checklist
 
-- [ ] Confirm whether Firebase Authentication > Sign-in method > Phone is enabled.
+- [ ] Confirm Firebase Authentication > Sign-in providers > Google is enabled; phone/SMS authentication is intentionally out of scope.
 - [ ] Confirm the canonical Android package ID. The supplied config currently says `com.irshogram.app`.
 - [ ] Add the matching `google-services.json` locally (do not commit it publicly).
 - [ ] Add debug and release SHA-1/SHA-256 fingerprints in Firebase.
-- [ ] Complete an actual OTP sign-in test on an Android device.
+- [ ] Complete an actual Google sign-in test on a physical Android device.
 - [ ] Replace the current local-only home flows with the authenticated repository incrementally.
