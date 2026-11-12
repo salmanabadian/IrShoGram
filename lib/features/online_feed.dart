@@ -225,32 +225,151 @@ class _OnlinePostActions extends StatelessWidget {
 class _NetworkPostVideo extends StatefulWidget {
   const _NetworkPostVideo({required this.url});
   final String url;
+
   @override
   State<_NetworkPostVideo> createState() => _NetworkPostVideoState();
 }
 
 class _NetworkPostVideoState extends State<_NetworkPostVideo> {
   VideoPlayerController? _controller;
+  bool _loading = true;
+  bool _failed = false;
+  int _loadGeneration = 0;
+
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..initialize().then((_) { if (mounted) setState(() {}); });
+    _initialize();
   }
+
   @override
-  void dispose() { _controller?.dispose(); super.dispose(); }
+  void didUpdateWidget(covariant _NetworkPostVideo oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url == widget.url) return;
+
+    _loadGeneration++;
+    final previous = _controller;
+    _controller = null;
+    previous?.removeListener(_handleControllerUpdate);
+    previous?.dispose();
+    _loading = true;
+    _failed = false;
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    final generation = ++_loadGeneration;
+    final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    _controller = controller;
+    controller.addListener(_handleControllerUpdate);
+
+    try {
+      await controller.initialize();
+      if (!mounted ||
+          generation != _loadGeneration ||
+          !identical(_controller, controller)) {
+        return;
+      }
+      setState(() => _loading = false);
+    } catch (_) {
+      if (!identical(_controller, controller)) return;
+      controller.removeListener(_handleControllerUpdate);
+      _controller = null;
+      await controller.dispose();
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
+    }
+  }
+
+  void _handleControllerUpdate() {
+    if (!mounted || _failed || _controller?.value.hasError != true) return;
+    setState(() => _failed = true);
+  }
+
+  Future<void> _retry() async {
+    final previous = _controller;
+    _controller = null;
+    previous?.removeListener(_handleControllerUpdate);
+    await previous?.dispose();
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
+    await _initialize();
+  }
+
+  Future<void> _togglePlayback() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _failed) {
+      return;
+    }
+    try {
+      if (controller.value.isPlaying) {
+        await controller.pause();
+      } else {
+        await controller.play();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _loadGeneration++;
+    final controller = _controller;
+    controller?.removeListener(_handleControllerUpdate);
+    controller?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) {
-      return const ColoredBox(color: Colors.black, child: Center(child: CircularProgressIndicator(color: Colors.white)));
+    if (_failed || controller?.value.hasError == true) {
+      return ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_outlined, color: Colors.white70, size: 34),
+              const SizedBox(height: 8),
+              const Text(
+                'پخش ویدیو انجام نشد',
+                style: TextStyle(color: Colors.white),
+              ),
+              TextButton(
+                onPressed: _loading ? null : _retry,
+                child: const Text('تلاش دوباره'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_loading || controller == null || !controller.value.isInitialized) {
+      return const ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
     }
     return GestureDetector(
-      onTap: () => setState(() => controller.value.isPlaying ? controller.pause() : controller.play()),
-      child: FittedBox(fit: BoxFit.cover, child: SizedBox(
-        width: controller.value.size.width, height: controller.value.size.height,
-        child: VideoPlayer(controller),
-      )),
+      onTap: _togglePlayback,
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: controller.value.size.width,
+          height: controller.value.size.height,
+          child: VideoPlayer(controller),
+        ),
+      ),
     );
   }
 }
