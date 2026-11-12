@@ -290,15 +290,16 @@ class _NetworkPostVideoState extends State<_NetworkPostVideo> {
   }
 
   Future<void> _retry() async {
+    if (_loading) return;
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
     final previous = _controller;
     _controller = null;
     previous?.removeListener(_handleControllerUpdate);
     await previous?.dispose();
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _failed = false;
-    });
     await _initialize();
   }
 
@@ -322,6 +323,7 @@ class _NetworkPostVideoState extends State<_NetworkPostVideo> {
   void dispose() {
     _loadGeneration++;
     final controller = _controller;
+    _controller = null;
     controller?.removeListener(_handleControllerUpdate);
     controller?.dispose();
     super.dispose();
