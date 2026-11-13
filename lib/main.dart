@@ -516,14 +516,20 @@ class _MainShellState extends State<MainShell> {
 
   Widget _profilePage() {
     if (!widget.useFirebase) return Center(child: Text(_username));
-    final saved = _posts.where((p) => p.savedByMe).toList();
     return ListView(padding: EdgeInsets.zero, children: [
       Padding(padding: const EdgeInsets.fromLTRB(14, 8, 14, 12), child: Row(children: [
         Text(_username, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: _igBlack)),
         const Spacer(),
         IconButton(tooltip: 'ایجاد پست', onPressed: _createMenu, icon: const Icon(Icons.add_box_outlined, size: 27, color: _igBlack)),
         PopupMenuButton<String>(icon: const Icon(Icons.menu, size: 27, color: _igBlack), onSelected: (value) {
-          if (value == 'saved') Navigator.push(context, MaterialPageRoute(builder: (_) => SavedPostsPage(posts: saved)));
+          if (value == 'saved') {
+            final uid = FirebaseAuth.instance.currentUser?.uid;
+            if (uid != null) {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => OnlineSavedPostsPage(uid: uid),
+              ));
+            }
+          }
           if (value == 'settings') Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
           if (value == 'accounts') _notice('مدیریت حساب اینترنتی به سرویس احراز هویت نیاز دارد.');
           if (value == 'theme') widget.onThemeChanged(!widget.isDark);
