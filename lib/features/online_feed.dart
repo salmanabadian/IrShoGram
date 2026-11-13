@@ -155,6 +155,41 @@ class _OnlinePostActions extends StatelessWidget {
           ),
           IconButton(onPressed: () => _showComments(context, comments), icon: const Icon(Icons.mode_comment_outlined, color: _ink, size: 25)),
           const Spacer(),
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('users').doc(uid)
+                .collection('savedPosts').doc(postId).snapshots(),
+            builder: (context, saved) => IconButton(
+              tooltip: saved.data?.exists == true
+                  ? 'حذف از ذخیره‌شده‌ها'
+                  : 'ذخیره پست',
+              onPressed: () async {
+                final savedRef = FirebaseFirestore.instance.collection('users')
+                    .doc(uid).collection('savedPosts').doc(postId);
+                try {
+                  if (saved.data?.exists == true) {
+                    await savedRef.delete();
+                  } else {
+                    await savedRef.set({
+                      'savedAt': FieldValue.serverTimestamp(),
+                    });
+                  }
+                } catch (error) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('ذخیره پست انجام نشد: $error')),
+                    );
+                  }
+                }
+              },
+              icon: Icon(
+                saved.data?.exists == true
+                    ? Icons.bookmark
+                    : Icons.bookmark_border,
+                color: _ink,
+                size: 25,
+              ),
+            ),
+          ),
           IconButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('اشتراک‌گذاری پست به‌زودی اضافه می‌شود.'))),
             icon: const Icon(Icons.send_outlined, color: _ink, size: 25)),
@@ -219,6 +254,157 @@ class _OnlinePostActions extends StatelessWidget {
       ),
     );
     controller.dispose();
+  }
+}
+
+class OnlineSavedPostsPage extends StatelessWidget {
+  const OnlineSavedPostsPage({super.key, required this.uid});
+
+  final String uid;
+
+  @override
+  Widget build(BuildContext context) {
+    final savedPosts = FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('savedPosts')
+        .orderBy('savedAt', descending: true)
+        .snapshots();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('ذخیره‌شده‌ها')),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: savedPosts,
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('بارگذاری پست‌های ذخیره‌شده انجام نشد.'),
+            );
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) {
+            return const Center(
+              child: Text('مورد ذخیره‌شده‌ای وجود ندارد.'),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: docs.length,
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: Color(0xFFDBDBDB)),
+            itemBuilder: (context, index) => _OnlineSavedPostTile(
+              uid: uid,
+              postId: docs[index].id,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OnlineSavedPostTile extends StatelessWidget {
+  const _OnlineSavedPostTile({
+    required this.uid,
+    required this.postId,
+  });
+
+  final String uid;
+  final String postId;
+
+  Future<void> _remove(BuildContext context) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('savedPosts')
+          .doc(postId)
+          .delete();
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حذف از ذخیره‌شده‌ها انجام نشد: $error')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = FirebaseFirestore.instance.collection('posts').doc(postId);
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: post.snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const ListTile(
+            leading: SizedBox(
+              width: 64,
+              height: 64,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+            title: Text('در حال بارگذاری پست...'),
+          );
+        }
+
+        final data = snapshot.data!.data();
+        if (!snapshot.data!.exists || data == null) {
+          return ListTile(
+            title: const Text('این پست دیگر در دسترس نیست.'),
+            trailing: IconButton(
+              tooltip: 'حذف از ذخیره‌شده‌ها',
+              onPressed: () => _remove(context),
+              icon: const Icon(Icons.bookmark_remove_outlined),
+            ),
+          );
+        }
+
+        final mediaUrl = data['mediaUrl'] as String? ?? '';
+        final isVideo = data['mediaType'] == 'video';
+        final caption = data['caption'] as String? ?? '';
+        Widget thumbnail;
+        if (isVideo) {
+          thumbnail = const ColoredBox(
+            color: Colors.black,
+            child: Center(
+              child: Icon(Icons.play_arrow, color: Colors.white, size: 30),
+            ),
+          );
+        } else if (mediaUrl.isEmpty) {
+          thumbnail = const ColoredBox(
+            color: Color(0xFFEFEFEF),
+            child: Center(child: Icon(Icons.broken_image_outlined)),
+          );
+        } else {
+          thumbnail = Image.network(
+            mediaUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const ColoredBox(
+              color: Color(0xFFEFEFEF),
+              child: Center(child: Icon(Icons.broken_image_outlined)),
+            ),
+          );
+        }
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          leading: SizedBox(width: 64, height: 64, child: thumbnail),
+          title: Text(
+            caption.isEmpty ? 'پست بدون توضیح' : caption,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: const Text('پست ذخیره‌شده'),
+          trailing: IconButton(
+            tooltip: 'حذف از ذخیره‌شده‌ها',
+            onPressed: () => _remove(context),
+            icon: const Icon(Icons.bookmark, color: _ink),
+          ),
+        );
+      },
+    );
   }
 }
 
