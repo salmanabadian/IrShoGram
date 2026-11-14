@@ -2,14 +2,21 @@ name: Flutter checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, firebase-foundation]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: irshogram-android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_ANDROID_CONFIG_BASE64: ${{ secrets.FIREBASE_ANDROID_CONFIG_BASE64 }}
+      FIREBASE_ANDROID_CONFIG_JSON: ${{ secrets.FIREBASE_ANDROID_CONFIG_JSON }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,16 +25,167 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Set up Gradle and cache distributions
+        uses: gradle/actions/setup-gradle@v4
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze
         run: flutter analyze
       - name: Run tests
         run: flutter test
+      - name: Set up Node.js for Firestore rules tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firestore rules test dependencies
+        run: npm install --no-audit --no-fund
+      - name: Test Firestore rules in the local emulator
+        run: npx --yes firebase-tools@14 emulators:exec --project demo-irshogram-rules --only firestore "npm run test:rules"
+      - name: Restore stable Android debug signing key
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: irshogram-android-debug-keystore-v1
+      - name: Create signing key once and print its fingerprints
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -v \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          keytool -list -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey | grep -E 'SHA1:|SHA256:'
+      - name: Prepare placeholder Firebase config for local preview build
+        run: |
+          mkdir -p android/app
+          cat > android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "irshogram-local-preview",
+              "storage_bucket": "irshogram-local-preview.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "com.irshogram.app"
+                  }
+                },
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDUMMY_PREVIEW_KEY_NOT_FOR_AUTH"
+                  }
+                ]
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+      - name: Build local preview APK (no Google sign-in required)
+        run: flutter build apk --release --dart-define=IRSHOGRAM_PREVIEW=true
+      - name: Upload preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: irshogram-preview-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Restore Firebase Android configuration
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
+        run: |
+          if [ -n "$FIREBASE_ANDROID_CONFIG_JSON" ]; then
+            printf '%s' "$FIREBASE_ANDROID_CONFIG_JSON" > android/app/google-services.json
+          else
+            printf '%s' "$FIREBASE_ANDROID_CONFIG_BASE64" | base64 --decode > android/app/google-services.json
+          fi
+      - name: Validate Firebase Google Sign-In configuration
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("android/app/google-services.json").read_text())
+          clients = config.get("client", [])
+          matching = [
+              item for item in clients
+              if item.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              == "com.irshogram.app"
+          ]
+          if not matching:
+              raise SystemExit(
+                  "Firebase Android config does not contain package com.irshogram.app. "
+                  "Register this exact package in Firebase and replace the protected config secret."
+              )
+          oauth_clients = matching[0].get("oauth_client", [])
+          if not any(item.get("client_type") == 3 for item in oauth_clients):
+              raise SystemExit(
+                  "Firebase config has no Google Web OAuth client (client_type 3). "
+                  "Enable Google sign-in, configure the OAuth client, download a fresh "
+                  "google-services.json, and update the protected config secret."
+              )
+          web_client_ids = [item.get('client_id', '') for item in oauth_clients if item.get('client_type') == 3]
+          web_client_id = next((value for value in web_client_ids if value.endswith('.apps.googleusercontent.com')), '')
+          if not web_client_id:
+              raise SystemExit('The Firebase config has no valid Web OAuth client ID.')
+          # Verify the Android OAuth client matches the exact certificate used
+          # to sign this APK. A Web client alone is insufficient for Android sign-in.
+          import re
+          import subprocess
+          keytool_output = subprocess.check_output([
+              "keytool", "-list", "-v",
+              "-keystore", str(Path.home() / ".android/debug.keystore"),
+              "-storepass", "android",
+              "-alias", "androiddebugkey",
+          ], text=True)
+          sha1_match = re.search(r"SHA1:\s*([0-9A-Fa-f:]+)", keytool_output)
+          if not sha1_match:
+              raise SystemExit("Could not read the Android APK signing certificate SHA-1.")
+          expected_sha1 = sha1_match.group(1).replace(":", "").upper()
+          android_clients = [
+              item for item in oauth_clients
+              if item.get("client_type") == 1
+              and item.get("android_info", {}).get("package_name") == "com.irshogram.app"
+          ]
+          matching_certificate = any(
+              item.get("android_info", {}).get("certificate_hash", "").replace(":", "").upper()
+              == expected_sha1
+              for item in android_clients
+          )
+          if not matching_certificate:
+              print(
+                  "WARNING: Firebase has no Android OAuth client matching this CI APK signing SHA-1. "
+                  "The Firebase-configured release APK will still be built. "
+                  "Google Sign-In may not work until this SHA-1 is registered and google-services.json is refreshed."
+              )
+          else:
+              print("Matching Android OAuth certificate is configured.")
+
+          with open(__import__('os').environ['GITHUB_ENV'], 'a') as env:
+              env.write(f'GOOGLE_SERVER_CLIENT_ID={web_client_id}\n')
+          print('Firebase Android package and Web OAuth client ID are present.')
+          PY
       - name: Build Android APK
-        run: flutter build apk --release
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
+        run: flutter build apk --release --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
       - name: Upload APK
+        if: ${{ github.event_name != 'pull_request' && (env.FIREBASE_ANDROID_CONFIG_BASE64 != '' || env.FIREBASE_ANDROID_CONFIG_JSON != '') }}
         uses: actions/upload-artifact@v4
         with:
           name: irshogram-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Explain Firebase APK validation is push-only
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "Firebase-configured APK validation is intentionally skipped for pull requests because GitHub Actions cache scopes can give PR builds a different signing key. Pushes and manual runs on firebase-foundation perform the signing-certificate check and Firebase APK build. The preview APK is not configured for Google Sign-In."
+      - name: Explain skipped APK build
+        if: ${{ github.event_name != 'pull_request' && env.FIREBASE_ANDROID_CONFIG_BASE64 == '' && env.FIREBASE_ANDROID_CONFIG_JSON == '' }}
+        run: echo "APK build skipped. Add repository secret FIREBASE_ANDROID_CONFIG_JSON (raw google-services.json contents) or FIREBASE_ANDROID_CONFIG_BASE64 to enable Firebase-configured Android builds."
