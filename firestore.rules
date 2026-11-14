@@ -52,7 +52,15 @@ service cloud.firestore {
       }
 
       match /savedPosts/{postId} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['savedAt'])
+          && request.resource.data.savedAt is timestamp
+          && request.resource.data.savedAt <= request.time
+          && exists(/databases/$(database)/documents/posts/$(postId));
+        // Saved-post markers are immutable; the owner removes them to unsave.
+        allow update: if false;
+        allow delete: if isOwner(uid);
       }
 
       match /notifications/{notificationId} {

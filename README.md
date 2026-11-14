@@ -32,8 +32,9 @@ Phone-number authentication is intentionally excluded from the current scope.
 
 ## Build checks
 
-The GitHub Actions workflow runs `flutter pub get`, `flutter analyze`, and
-`flutter test`. Pull-request runs also build a preview APK, but intentionally skip
+The GitHub Actions workflow runs `flutter pub get`, `flutter analyze`, `flutter test`,
+and a Firestore saved-post rules suite against the local emulator. These emulator
+tests do not deploy rules to Firebase. Pull-request runs also build a preview APK, but intentionally skip
 Firebase signing-certificate validation because GitHub scopes Actions caches
 differently for pull requests and branch pushes. Pushes and manual runs on
 `firebase-foundation` perform the Firebase configuration check and build the

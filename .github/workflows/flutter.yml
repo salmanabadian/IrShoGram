@@ -33,6 +33,14 @@ jobs:
         run: flutter analyze
       - name: Run tests
         run: flutter test
+      - name: Set up Node.js for Firestore rules tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Firestore rules test dependencies
+        run: npm install --no-audit --no-fund
+      - name: Test Firestore rules in the local emulator
+        run: npx --yes firebase-tools@14 emulators:exec --project demo-irshogram-rules --only firestore "npm run test:rules"
       - name: Restore stable Android debug signing key
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/cache@v4
