@@ -20,6 +20,7 @@ Open pull request: #1 (not merged)
 - User search/following, profile editing, profile post grid, and text messaging have initial Firebase-backed implementations.
 - Firestore rules, Storage rules, and index configuration files are present.
 - Saved-post Firestore rules now restrict reads/deletes to the owner, permit only timestamp-only creation for an existing post, and reject updates; dedicated emulator tests cover these cases.
+- Direct-message rules now require canonical sorted two-person conversation IDs, immutable participant lists, server timestamps, participant-only access, sender identity matching the authenticated user, bounded non-empty text messages, and valid image/video attachment metadata; emulator tests cover these cases.
 - The GitHub Actions workflow runs Flutter dependency installation, analysis, Flutter tests, Firestore saved-post rules tests in the local emulator, and conditionally builds/uploads release APK artifacts.
 
 ## CI and APK evidence
@@ -57,7 +58,7 @@ with a second Google account on another device.
 - Story viewer tracking, story replies/highlights, and reliable expiry/media cleanup need work.
 - Direct-message attachments, read receipts, delivery state, and push notifications are incomplete.
 - Explore ranking, sharing, reporting, blocking, private-account access control, and privacy settings are incomplete.
-- Firestore/Storage rules and indexes have not been deployed to the target Firebase project. The new emulator suite covers saved-post rules only; the remaining collections and Storage rules still need broader security tests.
+- Firestore/Storage rules and indexes have not been deployed to the target Firebase project. The emulator suite covers saved-post and direct-message rules; other collections and Storage rules still need broader security tests.
 - Cloud Functions/trusted server workflows for notifications, counters, moderation, cleanup, and abuse prevention are not implemented.
 - Pagination, upload progress/retry, image/video compression, thumbnails, offline behavior, and lifecycle cleanup need improvement.
 - Release APK is currently debug-signed; production signing is not configured.
