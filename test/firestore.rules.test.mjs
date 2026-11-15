@@ -24,6 +24,26 @@ function savedPostRef(database, ownerUid, postId = "post-1") {
   return doc(database, "users", ownerUid, "savedPosts", postId);
 }
 
+function conversationRef(database, firstUid = "alice", secondUid = "bob", id) {
+  const participants = [firstUid, secondUid].sort();
+  return doc(database, "conversations", id ?? participants.join("_"));
+}
+
+async function createConversation(database, firstUid = "alice", secondUid = "bob", id) {
+  const participants = [firstUid, secondUid].sort();
+  const reference = conversationRef(database, firstUid, secondUid, id);
+  await setDoc(reference, {
+    participantIds: participants,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return reference;
+}
+
+function messageRef(database, conversationId, messageId = "message-1") {
+  return doc(database, "conversations", conversationId, "messages", messageId);
+}
+
 before(async () => {
   testEnvironment = await initializeTestEnvironment({
     projectId,
@@ -108,5 +128,117 @@ test("unauthenticated clients cannot read or create saved-post markers", async (
   await assertFails(getDoc(savedPostRef(database, "alice")));
   await assertFails(setDoc(savedPostRef(database, "alice"), {
     savedAt: serverTimestamp(),
+  }));
+});
+
+
+test("a conversation can only be created with two sorted participants and its canonical ID", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+
+  await assertSucceeds(createConversation(alice));
+  await assertFails(setDoc(doc(alice, "conversations", "alice"), {
+    participantIds: ["alice"],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(alice, "conversations", "alice_bob_charlie"), {
+    participantIds: ["alice", "bob", "charlie"],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(alice, "conversations", "wrong-id"), {
+    participantIds: ["alice", "bob"],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(alice, "conversations", "bob_alice"), {
+    participantIds: ["bob", "alice"],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }));
+});
+
+test("only conversation participants can read the conversation and its messages", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const charlie = testEnvironment.authenticatedContext("charlie").firestore();
+  const conversation = await createConversation(alice);
+  const id = conversation.id;
+  const message = messageRef(alice, id);
+
+  await assertSucceeds(getDoc(conversationRef(bob)));
+  await assertFails(getDoc(conversationRef(charlie)));
+  await assertSucceeds(setDoc(message, {
+    senderId: "alice",
+    text: "Hello",
+    mediaUrl: null,
+    createdAt: serverTimestamp(),
+    type: "text",
+  }));
+  await assertSucceeds(getDoc(messageRef(bob, id)));
+  await assertFails(getDoc(messageRef(charlie, id)));
+  await assertFails(setDoc(messageRef(charlie, id, "outsider-message"), {
+    senderId: "charlie",
+    text: "Not a participant",
+    mediaUrl: null,
+    createdAt: serverTimestamp(),
+    type: "text",
+  }));
+});
+
+test("direct messages reject sender spoofing, empty text, oversized text, and unknown types", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const conversation = await createConversation(alice);
+  const id = conversation.id;
+
+  await assertFails(setDoc(messageRef(bob, id, "spoofed"), {
+    senderId: "alice",
+    text: "Spoofed sender",
+    mediaUrl: null,
+    createdAt: serverTimestamp(),
+    type: "text",
+  }));
+  await assertFails(setDoc(messageRef(alice, id, "empty"), {
+    senderId: "alice",
+    text: "   ",
+    mediaUrl: null,
+    createdAt: serverTimestamp(),
+    type: "text",
+  }));
+  await assertFails(setDoc(messageRef(alice, id, "oversized"), {
+    senderId: "alice",
+    text: "x".repeat(5001),
+    mediaUrl: null,
+    createdAt: serverTimestamp(),
+    type: "text",
+  }));
+  await assertFails(setDoc(messageRef(alice, id, "unknown-type"), {
+    senderId: "alice",
+    text: "Hello",
+    mediaUrl: null,
+    createdAt: serverTimestamp(),
+    type: "system",
+  }));
+});
+
+test("attachment messages require a non-empty media URL", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const conversation = await createConversation(alice);
+  const id = conversation.id;
+
+  await assertFails(setDoc(messageRef(alice, id, "missing-media"), {
+    senderId: "alice",
+    text: "",
+    mediaUrl: null,
+    createdAt: serverTimestamp(),
+    type: "image",
+  }));
+  await assertSucceeds(setDoc(messageRef(alice, id, "image-message"), {
+    senderId: "alice",
+    text: "",
+    mediaUrl: "https://firebasestorage.googleapis.com/v0/b/example/o/image.jpg",
+    createdAt: serverTimestamp(),
+    type: "image",
   }));
 });
