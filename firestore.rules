@@ -152,14 +152,25 @@ service cloud.firestore {
         && request.auth.uid in resource.data.participantIds;
       allow create: if signedIn()
         && request.resource.data.participantIds is list
+        && request.resource.data.participantIds.size() == 2
+        && request.resource.data.participantIds[0] is string
+        && request.resource.data.participantIds[1] is string
+        && request.resource.data.participantIds[0] < request.resource.data.participantIds[1]
         && request.auth.uid in request.resource.data.participantIds
-        && request.resource.data.participantIds.size() >= 2
-        && request.resource.data.participantIds.size() <= 2
-        && request.resource.data.keys().hasOnly(['participantIds', 'createdAt', 'updatedAt']);
+        && conversationId == request.resource.data.participantIds[0] + '_'
+          + request.resource.data.participantIds[1]
+        && request.resource.data.keys().hasOnly(['participantIds', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['participantIds', 'createdAt', 'updatedAt'])
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
       allow update: if signedIn()
         && request.auth.uid in resource.data.participantIds
         && request.resource.data.participantIds == resource.data.participantIds
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
       allow delete: if false;
 
       match /messages/{messageId} {
@@ -172,7 +183,20 @@ service cloud.firestore {
         allow create: if isConversationMember()
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.keys().hasOnly(['senderId', 'text', 'mediaUrl', 'createdAt', 'type'])
-          && validText(request.resource.data.text, 5000);
+          && request.resource.data.keys().hasAll(['senderId', 'text', 'mediaUrl', 'createdAt', 'type'])
+          && validText(request.resource.data.text, 5000)
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.type in ['text', 'image', 'video']
+          && (
+            (request.resource.data.type == 'text'
+              && request.resource.data.text.size() > 0
+              && request.resource.data.mediaUrl == null)
+            ||
+            (request.resource.data.type in ['image', 'video']
+              && request.resource.data.mediaUrl is string
+              && request.resource.data.mediaUrl.size() > 0)
+          );
         allow update, delete: if false;
       }
     }
