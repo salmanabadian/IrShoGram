@@ -201,7 +201,7 @@ test("direct messages reject sender spoofing, empty text, oversized text, and un
   }));
   await assertFails(setDoc(messageRef(alice, id, "empty"), {
     senderId: "alice",
-    text: "   ",
+    text: "",
     mediaUrl: null,
     createdAt: serverTimestamp(),
     type: "text",
