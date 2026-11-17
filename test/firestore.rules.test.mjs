@@ -44,6 +44,22 @@ function messageRef(database, conversationId, messageId = "message-1") {
   return doc(database, "conversations", conversationId, "messages", messageId);
 }
 
+function userRef(database, uid = "alice") {
+  return doc(database, "users", uid);
+}
+
+function validUserProfile(uid = "alice") {
+  return {
+    uid,
+    username: "alice_01",
+    displayName: "Alice",
+    bio: "Hello",
+    photoUrl: "https://example.invalid/avatar.png",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
 before(async () => {
   testEnvironment = await initializeTestEnvironment({
     projectId,
@@ -69,6 +85,69 @@ beforeEach(async () => {
       updatedAt: Timestamp.now(),
     });
   });
+});
+
+test("a user can create a complete profile with validated fields and server timestamps", async () => {
+  const database = testEnvironment.authenticatedContext("alice").firestore();
+  const reference = userRef(database);
+
+  await assertSucceeds(setDoc(reference, validUserProfile()));
+  const profile = await assertSucceeds(getDoc(reference));
+  assert.equal(profile.data().uid, "alice");
+  assert.equal(profile.data().username, "alice_01");
+});
+
+test("profile creation rejects another user's path and invalid or unexpected fields", async () => {
+  const database = testEnvironment.authenticatedContext("alice").firestore();
+
+  await assertFails(setDoc(userRef(database, "bob"), validUserProfile("bob")));
+
+  const invalidProfiles = [
+    { ...validUserProfile(), username: "" },
+    { ...validUserProfile(), username: "ab" },
+    { ...validUserProfile(), username: "name with spaces" },
+    { ...validUserProfile(), username: "u".repeat(31) },
+    { ...validUserProfile(), displayName: "" },
+    { ...validUserProfile(), bio: "b".repeat(301) },
+    { ...validUserProfile(), photoUrl: "http://example.invalid/avatar.png" },
+    { ...validUserProfile(), unexpected: true },
+    { ...validUserProfile(), createdAt: Timestamp.fromMillis(0) },
+  ];
+
+  for (const profile of invalidProfiles) {
+    await assertFails(setDoc(userRef(database), profile));
+  }
+});
+
+test("profile updates preserve ownership and creation time and require a server update timestamp", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const reference = userRef(alice);
+
+  await assertSucceeds(setDoc(reference, validUserProfile()));
+  await assertSucceeds(updateDoc(reference, {
+    displayName: "Alice Updated",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(reference, {
+    username: "",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(reference, {
+    uid: "bob",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(reference, {
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(reference, {
+    updatedAt: Timestamp.fromMillis(0),
+  }));
+  await assertFails(updateDoc(userRef(bob, "alice"), {
+    displayName: "Changed by another user",
+    updatedAt: serverTimestamp(),
+  }));
 });
 
 test("an owner can create and read a saved-post marker", async () => {
