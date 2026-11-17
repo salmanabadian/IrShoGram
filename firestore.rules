@@ -18,7 +18,25 @@ service cloud.firestore {
       return value is string
         && value.size() >= 3
         && value.size() <= 30
-        && value.matches('^[a-zA-Z0-9._]+
+        && value.matches('[a-zA-Z0-9._]{3,30}');
+    }
+
+    function validDisplayName(value) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= 80;
+    }
+
+    function validProfilePhoto(value) {
+      return value == null
+        || value == ''
+        || (
+          value is string
+          && value.size() <= 2048
+          && value.matches('https://.*')
+        );
+    }
+
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isOwner(uid)
