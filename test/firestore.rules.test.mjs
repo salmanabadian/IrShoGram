@@ -60,6 +60,36 @@ function validUserProfile(uid = "alice") {
   };
 }
 
+function validPost(authorId = "alice") {
+  return {
+    authorId,
+    caption: "A test post",
+    mediaUrl: "https://firebasestorage.googleapis.com/v0/b/example/o/post.jpg",
+    mediaType: "image",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+function validStory(authorId = "alice") {
+  return {
+    authorId,
+    mediaUrl: "https://firebasestorage.googleapis.com/v0/b/example/o/story.jpg",
+    mediaType: "image",
+    createdAt: serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+  };
+}
+
+function validReel(authorId = "alice") {
+  return {
+    authorId,
+    caption: "A test reel",
+    mediaUrl: "https://firebasestorage.googleapis.com/v0/b/example/o/reel.mp4",
+    createdAt: serverTimestamp(),
+  };
+}
+
 before(async () => {
   testEnvironment = await initializeTestEnvironment({
     projectId,
@@ -85,6 +115,95 @@ beforeEach(async () => {
       updatedAt: Timestamp.now(),
     });
   });
+});
+
+test("posts require complete owner-scoped metadata and a safe HTTPS media URL", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const post = doc(alice, "posts", "valid-media-post");
+
+  await assertSucceeds(setDoc(post, validPost()));
+  await assertSucceeds(updateDoc(post, {
+    caption: "Updated caption",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(post, {
+    mediaUrl: "https://firebasestorage.googleapis.com/v0/b/example/o/replaced.jpg",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(bob, "posts", "spoofed-author"), validPost("alice")));
+
+  const invalidUrls = [
+    "",
+    "http://example.invalid/post.jpg",
+    "file:///data/local/post.jpg",
+    "data:image/png;base64,AAAA",
+    "https://",
+    `https://example.invalid/${"x".repeat(2050)}`,
+  ];
+  for (let index = 0; index < invalidUrls.length; index += 1) {
+    await assertFails(setDoc(
+      doc(alice, "posts", `invalid-media-${index}`),
+      { ...validPost(), mediaUrl: invalidUrls[index] },
+    ));
+  }
+
+  await assertFails(setDoc(doc(alice, "posts", "missing-field"), {
+    authorId: "alice",
+    caption: "Missing media metadata",
+    mediaUrl: "https://example.invalid/post.jpg",
+    mediaType: "image",
+    createdAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(alice, "posts", "unexpected-field"), {
+    ...validPost(),
+    localPath: "/private/device/path.jpg",
+  }));
+  await assertFails(setDoc(doc(alice, "posts", "invalid-type"), {
+    ...validPost(),
+    mediaType: "audio",
+  }));
+});
+
+test("stories require safe media URLs, complete metadata, and a future expiry", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+
+  await assertSucceeds(setDoc(doc(alice, "stories", "valid-story"), validStory()));
+  await assertFails(setDoc(doc(bob, "stories", "spoofed-story"), validStory("alice")));
+  await assertFails(setDoc(doc(alice, "stories", "unsafe-story-url"), {
+    ...validStory(),
+    mediaUrl: "file:///data/local/story.jpg",
+  }));
+  await assertFails(setDoc(doc(alice, "stories", "expired-story"), {
+    ...validStory(),
+    expiresAt: Timestamp.fromMillis(Date.now() - 60_000),
+  }));
+  await assertFails(setDoc(doc(alice, "stories", "extra-story-field"), {
+    ...validStory(),
+    devicePath: "/private/story.jpg",
+  }));
+});
+
+test("reels require safe HTTPS media URLs and immutable media metadata", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const reel = doc(alice, "reels", "valid-reel");
+
+  await assertSucceeds(setDoc(reel, validReel()));
+  await assertSucceeds(updateDoc(reel, { caption: "Updated reel caption" }));
+  await assertFails(updateDoc(reel, {
+    mediaUrl: "https://firebasestorage.googleapis.com/v0/b/example/o/other.mp4",
+  }));
+  await assertFails(setDoc(doc(bob, "reels", "spoofed-reel"), validReel("alice")));
+  await assertFails(setDoc(doc(alice, "reels", "unsafe-reel-url"), {
+    ...validReel(),
+    mediaUrl: "http://example.invalid/reel.mp4",
+  }));
+  await assertFails(setDoc(doc(alice, "reels", "extra-reel-field"), {
+    ...validReel(),
+    localPath: "/private/device/reel.mp4",
+  }));
 });
 
 test("a user can create a complete profile with validated fields and server timestamps", async () => {
