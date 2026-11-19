@@ -37,6 +37,13 @@ service cloud.firestore {
         );
     }
 
+    function validMediaUrl(value) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= 2048
+        && value.matches('https://.*');
+    }
+
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isOwner(uid)
@@ -116,20 +123,32 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.keys().hasOnly([
           'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
         ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.authorId == request.auth.uid
         && validText(request.resource.data.caption, 2200)
         && request.resource.data.mediaType in ['image', 'video']
-        && request.resource.data.mediaUrl is string;
+        && validMediaUrl(request.resource.data.mediaUrl)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
       allow update: if signedIn()
         && resource.data.authorId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
+        ])
         && request.resource.data.authorId == resource.data.authorId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'caption', 'updatedAt'
         ])
-        && validText(request.resource.data.caption, 2200);
+        && validText(request.resource.data.caption, 2200)
+        && request.resource.data.updatedAt is timestamp;
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
 
       match /likes/{uid} {
@@ -160,13 +179,18 @@ service cloud.firestore {
     match /stories/{storyId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.keys().hasOnly([
           'authorId', 'mediaUrl', 'mediaType', 'createdAt', 'expiresAt'
         ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'mediaUrl', 'mediaType', 'createdAt', 'expiresAt'
+        ])
+        && request.resource.data.authorId == request.auth.uid
+        && validMediaUrl(request.resource.data.mediaUrl)
         && request.resource.data.mediaType in ['image', 'video']
-        && request.resource.data.mediaUrl is string
-        && request.resource.data.expiresAt is timestamp;
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time;
       allow update: if false;
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
@@ -174,16 +198,27 @@ service cloud.firestore {
     match /reels/{reelId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.keys().hasOnly([
           'authorId', 'caption', 'mediaUrl', 'createdAt'
         ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'createdAt'
+        ])
+        && request.resource.data.authorId == request.auth.uid
         && validText(request.resource.data.caption, 2200)
-        && request.resource.data.mediaUrl is string;
+        && validMediaUrl(request.resource.data.mediaUrl)
+        && request.resource.data.createdAt is timestamp;
       allow update: if signedIn()
         && resource.data.authorId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'authorId', 'caption', 'mediaUrl', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'createdAt'
+        ])
         && request.resource.data.authorId == resource.data.authorId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption'])
+        && validText(request.resource.data.caption, 2200);
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
 
