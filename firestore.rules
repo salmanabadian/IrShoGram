@@ -39,9 +39,9 @@ service cloud.firestore {
 
     function validMediaUrl(value) {
       return value is string
-        && value.size() > 0
+        && value.size() > 8
         && value.size() <= 2048
-        && value.matches('https://.*');
+        && value.matches('https://[^/]+.*');
     }
 
     match /users/{uid} {
