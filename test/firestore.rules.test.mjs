@@ -206,6 +206,102 @@ test("reels require safe HTTPS media URLs and immutable media metadata", async (
   }));
 });
 
+test("following markers require a real target and a server timestamp", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const following = doc(alice, "users", "alice", "following", "bob");
+
+  await assertSucceeds(setDoc(userRef(alice), validUserProfile("alice")));
+  await assertSucceeds(setDoc(userRef(alice, "bob"), validUserProfile("bob")));
+
+  await assertFails(setDoc(following, { targetUid: "bob" }));
+  await assertFails(setDoc(following, {
+    targetUid: "bob",
+    createdAt: Timestamp.fromMillis(0),
+  }));
+  await assertFails(setDoc(following, {
+    targetUid: "bob",
+    createdAt: serverTimestamp(),
+    extra: true,
+  }));
+  await assertFails(setDoc(doc(alice, "users", "alice", "following", "charlie"), {
+    targetUid: "charlie",
+    createdAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(bob, "users", "alice", "following", "bob"), {
+    targetUid: "bob",
+    createdAt: serverTimestamp(),
+  }));
+
+  await assertSucceeds(setDoc(following, {
+    targetUid: "bob",
+    createdAt: serverTimestamp(),
+  }));
+});
+
+test("likes require an existing post and an immutable server-created timestamp", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const like = doc(alice, "posts", "post-1", "likes", "alice");
+
+  await assertFails(setDoc(like, {}));
+  await assertFails(setDoc(like, { createdAt: Timestamp.fromMillis(0) }));
+  await assertFails(setDoc(like, {
+    createdAt: serverTimestamp(),
+    unexpected: true,
+  }));
+  await assertFails(setDoc(doc(alice, "posts", "missing-post", "likes", "alice"), {
+    createdAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(bob, "posts", "post-1", "likes", "alice"), {
+    createdAt: serverTimestamp(),
+  }));
+
+  await assertSucceeds(setDoc(like, { createdAt: serverTimestamp() }));
+  await assertFails(updateDoc(like, { createdAt: serverTimestamp() }));
+});
+
+test("comments require complete owner metadata and a server timestamp", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const comment = doc(alice, "posts", "post-1", "comments", "comment-1");
+
+  await assertFails(setDoc(comment, {
+    authorId: "alice",
+    text: "Missing timestamp",
+  }));
+  await assertFails(setDoc(comment, {
+    authorId: "alice",
+    text: "Invalid timestamp",
+    createdAt: Timestamp.fromMillis(0),
+  }));
+  await assertFails(setDoc(comment, {
+    authorId: "alice",
+    text: "Unexpected field",
+    createdAt: serverTimestamp(),
+    localDraft: true,
+  }));
+  await assertFails(setDoc(comment, {
+    authorId: "bob",
+    text: "Spoofed author",
+    createdAt: serverTimestamp(),
+  }));
+  await assertFails(setDoc(doc(alice, "posts", "missing-post", "comments", "comment-1"), {
+    authorId: "alice",
+    text: "Missing parent post",
+    createdAt: serverTimestamp(),
+  }));
+
+  await assertSucceeds(setDoc(comment, {
+    authorId: "alice",
+    text: "A valid comment",
+    createdAt: serverTimestamp(),
+  }));
+  await assertSucceeds(updateDoc(comment, { text: "Edited comment" }));
+  await assertFails(updateDoc(comment, { authorId: "bob" }));
+  await assertFails(updateDoc(comment, { createdAt: serverTimestamp() }));
+});
+
 test("a user can create a complete profile with validated fields and server timestamps", async () => {
   const database = testEnvironment.authenticatedContext("alice").firestore();
   const reference = userRef(database);
@@ -229,6 +325,7 @@ test("profile creation rejects another user's path and invalid or unexpected fie
     { ...validUserProfile(), displayName: "" },
     { ...validUserProfile(), bio: "b".repeat(301) },
     { ...validUserProfile(), photoUrl: "http://example.invalid/avatar.png" },
+    { ...validUserProfile(), photoUrl: "https://" },
     { ...validUserProfile(), unexpected: true },
     { ...validUserProfile(), createdAt: Timestamp.fromMillis(0) },
   ];
@@ -420,7 +517,7 @@ test("direct messages reject sender spoofing, empty text, oversized text, and un
   }));
 });
 
-test("attachment messages require a non-empty media URL", async () => {
+test("attachment messages require a safe HTTPS media URL", async () => {
   const alice = testEnvironment.authenticatedContext("alice").firestore();
   const conversation = await createConversation(alice);
   const id = conversation.id;
@@ -432,6 +529,24 @@ test("attachment messages require a non-empty media URL", async () => {
     createdAt: serverTimestamp(),
     type: "image",
   }));
+
+  const invalidUrls = [
+    "",
+    "http://example.invalid/image.jpg",
+    "file:///data/local/image.jpg",
+    "data:image/png;base64,AAAA",
+    "https://",
+  ];
+  for (let index = 0; index < invalidUrls.length; index += 1) {
+    await assertFails(setDoc(messageRef(alice, id, `invalid-media-${index}`), {
+      senderId: "alice",
+      text: "",
+      mediaUrl: invalidUrls[index],
+      createdAt: serverTimestamp(),
+      type: "image",
+    }));
+  }
+
   await assertSucceeds(setDoc(messageRef(alice, id, "image-message"), {
     senderId: "alice",
     text: "",
