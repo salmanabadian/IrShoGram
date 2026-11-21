@@ -212,7 +212,7 @@ test("following markers require a real target and a server timestamp", async () 
   const following = doc(alice, "users", "alice", "following", "bob");
 
   await assertSucceeds(setDoc(userRef(alice), validUserProfile("alice")));
-  await assertSucceeds(setDoc(userRef(bob), validUserProfile("bob")));
+  await assertSucceeds(setDoc(userRef(bob, "bob"), validUserProfile("bob")));
 
   await assertFails(setDoc(following, { targetUid: "bob" }));
   await assertFails(setDoc(following, {
