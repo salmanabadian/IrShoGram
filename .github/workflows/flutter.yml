@@ -33,14 +33,14 @@ jobs:
         run: flutter analyze
       - name: Run tests
         run: flutter test
-      - name: Set up Node.js for Firestore rules tests
+      - name: Set up Node.js for Firebase rules tests
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install Firestore rules test dependencies
+      - name: Install Firebase rules test dependencies
         run: npm install --no-audit --no-fund
-      - name: Test Firestore rules in the local emulator
-        run: npx --yes firebase-tools@14 emulators:exec --project demo-irshogram-rules --only firestore "npm run test:rules"
+      - name: Test Firestore and Storage rules in local emulators
+        run: npx --yes firebase-tools@14 emulators:exec --project demo-irshogram-rules --only firestore,storage "npm run test:rules && npm run test:storage-rules"
       - name: Restore stable Android debug signing key
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/cache@v4
@@ -137,8 +137,6 @@ jobs:
           web_client_id = next((value for value in web_client_ids if value.endswith('.apps.googleusercontent.com')), '')
           if not web_client_id:
               raise SystemExit('The Firebase config has no valid Web OAuth client ID.')
-          # Verify the Android OAuth client matches the exact certificate used
-          # to sign this APK. A Web client alone is insufficient for Android sign-in.
           import re
           import subprocess
           keytool_output = subprocess.check_output([
@@ -147,7 +145,7 @@ jobs:
               "-storepass", "android",
               "-alias", "androiddebugkey",
           ], text=True)
-          sha1_match = re.search(r"SHA1:\s*([0-9A-Fa-f:]+)", keytool_output)
+          sha1_match = re.search(r"SHA1:\\s*([0-9A-Fa-f:]+)", keytool_output)
           if not sha1_match:
               raise SystemExit("Could not read the Android APK signing certificate SHA-1.")
           expected_sha1 = sha1_match.group(1).replace(":", "").upper()
@@ -171,7 +169,7 @@ jobs:
               print("Matching Android OAuth certificate is configured.")
 
           with open(__import__('os').environ['GITHUB_ENV'], 'a') as env:
-              env.write(f'GOOGLE_SERVER_CLIENT_ID={web_client_id}\n')
+              env.write(f'GOOGLE_SERVER_CLIENT_ID={web_client_id}\\n')
           print('Firebase Android package and Web OAuth client ID are present.')
           PY
       - name: Build Android APK
