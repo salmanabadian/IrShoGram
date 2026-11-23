@@ -206,6 +206,44 @@ test("reels require safe HTTPS media URLs and immutable media metadata", async (
   }));
 });
 
+
+test("posts, stories, and reels reject client-supplied creation timestamps", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const forgedTime = Timestamp.fromMillis(0);
+
+  await assertFails(setDoc(doc(alice, "posts", "forged-post-created"), {
+    ...validPost(),
+    createdAt: forgedTime,
+  }));
+  await assertFails(setDoc(doc(alice, "posts", "forged-post-updated"), {
+    ...validPost(),
+    updatedAt: forgedTime,
+  }));
+  await assertFails(setDoc(doc(alice, "stories", "forged-story"), {
+    ...validStory(),
+    createdAt: forgedTime,
+  }));
+  await assertFails(setDoc(doc(alice, "reels", "forged-reel"), {
+    ...validReel(),
+    createdAt: forgedTime,
+  }));
+});
+
+test("post caption updates require a server-generated update timestamp", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const post = doc(alice, "posts", "timestamped-update");
+
+  await assertSucceeds(setDoc(post, validPost()));
+  await assertFails(updateDoc(post, {
+    caption: "Forged update time",
+    updatedAt: Timestamp.fromMillis(0),
+  }));
+  await assertSucceeds(updateDoc(post, {
+    caption: "Valid server-timestamped update",
+    updatedAt: serverTimestamp(),
+  }));
+});
+
 test("following markers require a real target and a server timestamp", async () => {
   const alice = testEnvironment.authenticatedContext("alice").firestore();
   const bob = testEnvironment.authenticatedContext("bob").firestore();
