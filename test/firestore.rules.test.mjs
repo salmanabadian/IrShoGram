@@ -593,3 +593,44 @@ test("attachment messages require a safe HTTPS media URL", async () => {
     type: "image",
   }));
 });
+
+
+test("notifications are private to their recipient and only the read flag is mutable", async () => {
+  const notificationPath = "users/alice/notifications/like-1";
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), notificationPath), {
+      type: "like",
+      actorId: "bob",
+      recipientId: "alice",
+      postId: "post-1",
+      createdAt: Timestamp.now(),
+      read: false,
+    });
+  });
+
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+  const anonymous = testEnvironment.unauthenticatedContext().firestore();
+  const aliceNotification = doc(alice, notificationPath);
+  const bobNotification = doc(bob, notificationPath);
+  const anonymousNotification = doc(anonymous, notificationPath);
+
+  await assertSucceeds(getDoc(aliceNotification));
+  await assertFails(getDoc(bobNotification));
+  await assertFails(getDoc(anonymousNotification));
+
+  await assertSucceeds(updateDoc(aliceNotification, { read: true }));
+  await assertFails(updateDoc(aliceNotification, { read: "true" }));
+  await assertFails(updateDoc(aliceNotification, { actorId: "mallory" }));
+  await assertFails(deleteDoc(aliceNotification));
+  await assertFails(setDoc(
+    doc(alice, "users", "alice", "notifications", "client-created"),
+    {
+      type: "follow",
+      actorId: "alice",
+      recipientId: "alice",
+      createdAt: serverTimestamp(),
+      read: false,
+    },
+  ));
+});
