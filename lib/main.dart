@@ -13,6 +13,7 @@ import 'package:video_player/video_player.dart';
 
 import 'auth/auth_gate.dart';
 import 'features/online_feed.dart';
+import 'features/online_notifications.dart';
 import 'services/local_social_store.dart';
 
 const _previewMode = bool.fromEnvironment('IRSHOGRAM_PREVIEW', defaultValue: false);
@@ -626,13 +627,47 @@ class _MainShellState extends State<MainShell> {
 
   Widget _stat(String number, String label) => Column(children: [Text(number, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Text(label, style: const TextStyle(fontSize: 12))]);
 
-  void _showNotifications() {
-    showModalBottomSheet<void>(context: context, showDragHandle: true, builder: (ctx) => SafeArea(child: SizedBox(height: 340, child: Column(children: [
-      const Padding(padding: EdgeInsets.all(16), child: Text('اعلان‌ها', style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold))),
-      Expanded(child: _notifications.isEmpty
-        ? const Center(child: Text('اعلان تازه‌ای ندارید.'))
-        : ListView(children: _notifications.map((n) => ListTile(leading: const Icon(Icons.favorite, color: Colors.pink), title: Text(n))).toList())),
-    ]))));
+  Future<void> _showNotifications() async {
+    if (widget.useFirebase) {
+      await OnlineNotificationsSheet.show(context);
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: SizedBox(
+          height: 340,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'اعلان‌ها',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Expanded(
+                child: _notifications.isEmpty
+                    ? const Center(child: Text('اعلان تازه‌ای ندارید.'))
+                    : ListView(
+                        children: _notifications
+                            .map((notification) => ListTile(
+                                  leading: const Icon(
+                                    Icons.favorite,
+                                    color: Colors.pink,
+                                  ),
+                                  title: Text(notification),
+                                ))
+                            .toList(),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String _timeAgo(DateTime date) {
