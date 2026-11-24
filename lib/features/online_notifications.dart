@@ -71,7 +71,7 @@ class _OnlineNotificationsList extends StatelessWidget {
 
                   return ListView.separated(
                     itemCount: documents.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final notification = documents[index];
                       final data = notification.data();
