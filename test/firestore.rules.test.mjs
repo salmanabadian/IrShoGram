@@ -335,9 +335,25 @@ test("comments require complete owner metadata and a server timestamp", async ()
     text: "A valid comment",
     createdAt: serverTimestamp(),
   }));
-  await assertSucceeds(updateDoc(comment, { text: "Edited comment" }));
-  await assertFails(updateDoc(comment, { authorId: "bob" }));
-  await assertFails(updateDoc(comment, { createdAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(comment, {
+    text: "Edited comment",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(comment, {
+    text: "Edited without an audit timestamp",
+  }));
+  await assertFails(updateDoc(comment, {
+    text: "Edited with a forged timestamp",
+    updatedAt: Timestamp.fromMillis(0),
+  }));
+  await assertFails(updateDoc(comment, {
+    authorId: "bob",
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(comment, {
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }));
 });
 
 test("a user can create a complete profile with validated fields and server timestamps", async () => {
