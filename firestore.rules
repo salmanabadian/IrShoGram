@@ -183,9 +183,11 @@ service cloud.firestore {
         allow update: if signedIn()
           && resource.data.authorId == request.auth.uid
           && request.resource.data.authorId == resource.data.authorId
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'updatedAt'])
           && validText(request.resource.data.text, 2000)
-          && request.resource.data.text.size() > 0;
+          && request.resource.data.text.size() > 0
+          && request.resource.data.updatedAt is timestamp
+          && request.resource.data.updatedAt == request.time;
         allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
       }
     }
