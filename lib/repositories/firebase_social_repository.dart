@@ -189,7 +189,10 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
     if (snapshot.data()?['authorId'] != authorId) {
       throw StateError('Only the comment owner can edit this comment.');
     }
-    await ref.update({'text': text});
+    await ref.update({
+      'text': text,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   @override
