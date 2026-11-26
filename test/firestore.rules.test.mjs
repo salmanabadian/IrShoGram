@@ -635,7 +635,9 @@ test("notifications are private to their recipient and only the read flag is mut
   await assertFails(getDoc(bobNotification));
   await assertFails(getDoc(anonymousNotification));
 
+  await assertFails(updateDoc(aliceNotification, { read: false }));
   await assertSucceeds(updateDoc(aliceNotification, { read: true }));
+  await assertFails(updateDoc(aliceNotification, { read: false }));
   await assertFails(updateDoc(aliceNotification, { read: "true" }));
   await assertFails(updateDoc(aliceNotification, { actorId: "mallory" }));
   await assertFails(deleteDoc(aliceNotification));

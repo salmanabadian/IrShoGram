@@ -1,6 +1,6 @@
 # IrShoGram implementation status
 
-Last reviewed: 2026-11-14
+Last reviewed: 2026-11-26
 Active development branch: `firebase-foundation`
 Default branch: `main`
 Open pull request: #1 (not merged)
@@ -16,6 +16,7 @@ Open pull request: #1 (not merged)
 - A first-login Firestore profile is created when one does not exist.
 - Firestore/Storage repository implementation exists for users, follows, posts, likes, saves, comments, notifications, stories, reels, conversations, messages, and media uploads.
 - The online feed supports Firestore posts, likes, comments, media display, and post deletion.
+- Notification trigger source creates recipient-owned in-app notification documents for likes, comments, and follows; emulator integration tests verify each trigger, and client rules permit only a one-way unread-to-read transition.
 - Online post/story/reel publishing and online story/reel display are implemented in the current branch.
 - User search/following, profile editing, profile post grid, and text messaging have initial Firebase-backed implementations.
 - Firestore rules, Storage rules, and index configuration files are present.
@@ -59,7 +60,7 @@ with a second Google account on another device.
 - Direct-message attachments, read receipts, delivery state, and push notifications are incomplete.
 - Explore ranking, sharing, reporting, blocking, private-account access control, and privacy settings are incomplete.
 - Firestore/Storage rules and indexes have not been deployed to the target Firebase project. The emulator suite covers saved-post and direct-message rules; other collections and Storage rules still need broader security tests.
-- Cloud Functions/trusted server workflows for notifications, counters, moderation, cleanup, and abuse prevention are not implemented.
+- Like, comment, and follow notification Cloud Functions now exist in source and are covered by emulator integration tests; they are not deployed to the target Firebase project. Push notifications and trusted counter/moderation/cleanup workflows remain incomplete.
 - Pagination, upload progress/retry, image/video compression, thumbnails, offline behavior, and lifecycle cleanup need improvement.
 - Release APK is currently debug-signed; production signing is not configured.
 - Physical-device Google login, media upload, and two-device synchronization acceptance tests remain outstanding.
@@ -69,7 +70,7 @@ with a second Google account on another device.
 
 1. Test Google sign-in, session restoration, and sign-out on a physical Android device; then verify two separate Google accounts on two devices.
 2. Remove remaining local/demo data paths from production-facing screens.
-3. Complete real saved posts, notification flow, story views/replies, message attachments/read receipts, and multi-account support.
+3. Deploy and verify the notification triggers only after the Firebase project owner approves deployment and confirms billing eligibility; then finish story views/replies, message attachments/read receipts, and multi-account support.
 4. Harden and test privacy/security rules; add trusted backend functions.
 5. Add media optimization, pagination, resilient uploads, and low-bandwidth handling.
 6. Verify the approved launcher image before replacing the generic icon.

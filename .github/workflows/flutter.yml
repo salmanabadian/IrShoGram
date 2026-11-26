@@ -39,8 +39,10 @@ jobs:
           node-version: 22
       - name: Install Firebase rules test dependencies
         run: npm install --no-audit --no-fund
-      - name: Test Firestore and Storage rules in local emulators
-        run: npx --yes firebase-tools@14 emulators:exec --project demo-irshogram-rules --only firestore,storage "npm run test:rules && npm run test:storage-rules"
+      - name: Install Cloud Functions dependencies
+        run: npm install --prefix functions --no-audit --no-fund
+      - name: Test Firestore, Storage, and notification functions in local emulators
+        run: npx --yes firebase-tools@14 emulators:exec --project demo-irshogram-rules --only firestore,storage,functions "npm run test:rules && npm run test:storage-rules && npm run test:functions"
       - name: Restore stable Android debug signing key
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/cache@v4
