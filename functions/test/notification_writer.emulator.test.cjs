@@ -7,11 +7,10 @@ const emulatorEnabled = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 let app;
 let db;
 let FieldValue;
-let createNotificationOnce;
+const { createNotificationOnce } = require("../notification_writer");
 
 if (emulatorEnabled) {
   const { initializeApp } = require("firebase-admin/app");
-  ({ FieldValue, getFirestore: undefined } = {});
   const { FieldValue: firestoreFieldValue, getFirestore } = require("firebase-admin/firestore");
   FieldValue = firestoreFieldValue;
   app = initializeApp(
@@ -20,8 +19,6 @@ if (emulatorEnabled) {
   );
   db = getFirestore(app);
 }
-
-({ createNotificationOnce } = require("../notification_writer"));
 
 after(async () => {
   if (app) await app.delete();
