@@ -5,6 +5,7 @@ const { FieldValue, getFirestore } = require("firebase-admin/firestore");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 
 const { buildNotification } = require("./notification_payload");
+const { createNotificationOnce } = require("./notification_writer");
 
 initializeApp();
 
@@ -22,15 +23,15 @@ async function createRecipientNotification(event, details) {
     return;
   }
 
-  // The CloudEvent ID makes retries idempotent: a retried trigger writes the
-  // same notification document instead of creating duplicate inbox entries.
-  await recipientRef.collection("notifications").doc(event.id).set(
-    {
-      ...payload,
-      createdAt: FieldValue.serverTimestamp(),
-    },
-    { merge: false },
-  );
+  // A retry must not reset the recipient's read state. The writer transaction
+  // creates the event document once and leaves an existing notification intact.
+  await createNotificationOnce({
+    db,
+    recipientRef,
+    eventId: event.id,
+    payload,
+    serverTimestamp: () => FieldValue.serverTimestamp(),
+  });
 }
 
 exports.notifyPostLike = onDocumentCreated(
