@@ -14,31 +14,119 @@ service cloud.firestore {
       return value is string && value.size() <= maxLength;
     }
 
+    function validUsername(value) {
+      return value is string
+        && value.size() >= 3
+        && value.size() <= 30
+        && value.matches('[a-zA-Z0-9._]{3,30}');
+    }
+
+    function hasUsernameClaim(uid, username) {
+      let claimPath = /databases/$(database)/documents/usernames/$(username.lower());
+      return existsAfter(claimPath) && getAfter(claimPath).data.uid == uid;
+    }
+
+    function validDisplayName(value) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= 80;
+    }
+
+    function validProfilePhoto(value) {
+      return value == null
+        || value == ''
+        || (
+          value is string
+          && value.size() <= 2048
+          && value.size() > 8 && value.matches('https://[^/]+.*')
+        );
+    }
+
+    function validMediaUrl(value) {
+      return value is string
+        && value.size() > 8
+        && value.size() <= 2048
+        && value.matches('https://[^/]+.*');
+    }
+
+    match /usernames/{username} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.keys().hasAll(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && username.matches('[a-z0-9._]{3,30}')
+        && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username is string
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username.lower() == username;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && (
+          !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          || getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username.lower() != username
+        );
+    }
+
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly([
           'uid', 'username', 'displayName', 'bio', 'photoUrl', 'createdAt', 'updatedAt'
         ])
+        && request.resource.data.keys().hasAll([
+          'uid', 'username', 'displayName', 'bio', 'photoUrl', 'createdAt', 'updatedAt'
+        ])
         && request.resource.data.uid == uid
-        && validText(request.resource.data.username, 30)
-        && validText(request.resource.data.displayName, 80)
-        && validText(request.resource.data.bio, 300);
+        && validUsername(request.resource.data.username)
+        && hasUsernameClaim(uid, request.resource.data.username)
+        && validDisplayName(request.resource.data.displayName)
+        && validText(request.resource.data.bio, 300)
+        && validProfilePhoto(request.resource.data.photoUrl)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
       allow update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'username', 'displayName', 'bio', 'photoUrl', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'uid', 'username', 'displayName', 'bio', 'photoUrl', 'createdAt', 'updatedAt'
+        ])
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'username', 'displayName', 'bio', 'photoUrl', 'updatedAt'
         ])
-        && validText(request.resource.data.username, 30)
-        && validText(request.resource.data.displayName, 80)
-        && validText(request.resource.data.bio, 300);
-      allow delete: if isOwner(uid);
+        && validUsername(request.resource.data.username)
+        && hasUsernameClaim(uid, request.resource.data.username)
+        && (
+          request.resource.data.username == resource.data.username
+          || !existsAfter(/databases/$(database)/documents/usernames/$(resource.data.username.lower()))
+        )
+        && validDisplayName(request.resource.data.displayName)
+        && validText(request.resource.data.bio, 300)
+        && validProfilePhoto(request.resource.data.photoUrl)
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isOwner(uid)
+        && (
+          !exists(/databases/$(database)/documents/usernames/$(resource.data.username.lower()))
+          || (
+            get(/databases/$(database)/documents/usernames/$(resource.data.username.lower())).data.uid == uid
+            && !existsAfter(/databases/$(database)/documents/usernames/$(resource.data.username.lower()))
+          )
+        );
 
       match /following/{targetUid} {
         allow read: if signedIn();
         allow create: if isOwner(uid)
           && targetUid != uid
-          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.keys().hasOnly(['createdAt', 'targetUid'])
+          && request.resource.data.keys().hasAll(['createdAt', 'targetUid'])
+          && request.resource.data.targetUid == targetUid
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.createdAt == request.time
           && exists(/databases/$(database)/documents/users/$(targetUid));
         allow delete: if isOwner(uid);
         allow update: if false;
@@ -51,14 +139,23 @@ service cloud.firestore {
       }
 
       match /savedPosts/{postId} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['savedAt'])
+          && request.resource.data.savedAt is timestamp
+          && request.resource.data.savedAt <= request.time
+          && exists(/databases/$(database)/documents/posts/$(postId));
+        // Saved-post markers are immutable; the owner removes them to unsave.
+        allow update: if false;
+        allow delete: if isOwner(uid);
       }
 
       match /notifications/{notificationId} {
         allow read: if isOwner(uid);
         allow update: if isOwner(uid)
+          && resource.data.read == false
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
-          && request.resource.data.read is bool;
+          && request.resource.data.read == true;
         // Notifications are created and removed only by trusted backend code.
         allow create, delete: if false;
       }
@@ -67,26 +164,45 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.keys().hasOnly([
           'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
         ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.authorId == request.auth.uid
         && validText(request.resource.data.caption, 2200)
         && request.resource.data.mediaType in ['image', 'video']
-        && request.resource.data.mediaUrl is string;
+        && validMediaUrl(request.resource.data.mediaUrl)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
       allow update: if signedIn()
         && resource.data.authorId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'mediaType', 'createdAt', 'updatedAt'
+        ])
         && request.resource.data.authorId == resource.data.authorId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'caption', 'updatedAt'
         ])
-        && validText(request.resource.data.caption, 2200);
+        && validText(request.resource.data.caption, 2200)
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
 
       match /likes/{uid} {
         allow read: if signedIn();
         allow create: if isOwner(uid)
-          && request.resource.data.keys().hasOnly(['createdAt']);
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.keys().hasAll(['createdAt'])
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.createdAt == request.time
+          && exists(/databases/$(database)/documents/posts/$(postId));
         allow delete: if isOwner(uid);
         allow update: if false;
       }
@@ -96,14 +212,20 @@ service cloud.firestore {
         allow create: if signedIn()
           && request.resource.data.authorId == request.auth.uid
           && request.resource.data.keys().hasOnly(['authorId', 'text', 'createdAt'])
+          && request.resource.data.keys().hasAll(['authorId', 'text', 'createdAt'])
           && validText(request.resource.data.text, 2000)
-          && request.resource.data.text.size() > 0;
+          && request.resource.data.text.size() > 0
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.createdAt == request.time
+          && exists(/databases/$(database)/documents/posts/$(postId));
         allow update: if signedIn()
           && resource.data.authorId == request.auth.uid
           && request.resource.data.authorId == resource.data.authorId
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'updatedAt'])
           && validText(request.resource.data.text, 2000)
-          && request.resource.data.text.size() > 0;
+          && request.resource.data.text.size() > 0
+          && request.resource.data.updatedAt is timestamp
+          && request.resource.data.updatedAt == request.time;
         allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
       }
     }
@@ -111,13 +233,19 @@ service cloud.firestore {
     match /stories/{storyId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.keys().hasOnly([
           'authorId', 'mediaUrl', 'mediaType', 'createdAt', 'expiresAt'
         ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'mediaUrl', 'mediaType', 'createdAt', 'expiresAt'
+        ])
+        && request.resource.data.authorId == request.auth.uid
+        && validMediaUrl(request.resource.data.mediaUrl)
         && request.resource.data.mediaType in ['image', 'video']
-        && request.resource.data.mediaUrl is string
-        && request.resource.data.expiresAt is timestamp;
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time;
       allow update: if false;
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
@@ -125,16 +253,28 @@ service cloud.firestore {
     match /reels/{reelId} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && request.resource.data.authorId == request.auth.uid
         && request.resource.data.keys().hasOnly([
           'authorId', 'caption', 'mediaUrl', 'createdAt'
         ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'createdAt'
+        ])
+        && request.resource.data.authorId == request.auth.uid
         && validText(request.resource.data.caption, 2200)
-        && request.resource.data.mediaUrl is string;
+        && validMediaUrl(request.resource.data.mediaUrl)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt == request.time;
       allow update: if signedIn()
         && resource.data.authorId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'authorId', 'caption', 'mediaUrl', 'createdAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'authorId', 'caption', 'mediaUrl', 'createdAt'
+        ])
         && request.resource.data.authorId == resource.data.authorId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption'])
+        && validText(request.resource.data.caption, 2200);
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
 
@@ -143,14 +283,25 @@ service cloud.firestore {
         && request.auth.uid in resource.data.participantIds;
       allow create: if signedIn()
         && request.resource.data.participantIds is list
+        && request.resource.data.participantIds.size() == 2
+        && request.resource.data.participantIds[0] is string
+        && request.resource.data.participantIds[1] is string
+        && request.resource.data.participantIds[0] < request.resource.data.participantIds[1]
         && request.auth.uid in request.resource.data.participantIds
-        && request.resource.data.participantIds.size() >= 2
-        && request.resource.data.participantIds.size() <= 2
-        && request.resource.data.keys().hasOnly(['participantIds', 'createdAt', 'updatedAt']);
+        && conversationId == request.resource.data.participantIds[0] + '_'
+          + request.resource.data.participantIds[1]
+        && request.resource.data.keys().hasOnly(['participantIds', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['participantIds', 'createdAt', 'updatedAt'])
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
       allow update: if signedIn()
         && request.auth.uid in resource.data.participantIds
         && request.resource.data.participantIds == resource.data.participantIds
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time;
       allow delete: if false;
 
       match /messages/{messageId} {
@@ -163,7 +314,19 @@ service cloud.firestore {
         allow create: if isConversationMember()
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.keys().hasOnly(['senderId', 'text', 'mediaUrl', 'createdAt', 'type'])
-          && validText(request.resource.data.text, 5000);
+          && request.resource.data.keys().hasAll(['senderId', 'text', 'mediaUrl', 'createdAt', 'type'])
+          && validText(request.resource.data.text, 5000)
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.type in ['text', 'image', 'video']
+          && (
+            (request.resource.data.type == 'text'
+              && request.resource.data.text.size() > 0
+              && request.resource.data.mediaUrl == null)
+            ||
+            (request.resource.data.type in ['image', 'video']
+              && validMediaUrl(request.resource.data.mediaUrl))
+          );
         allow update, delete: if false;
       }
     }
