@@ -15,6 +15,7 @@ import {
   setDoc,
   Timestamp,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 
 const projectId = "demo-irshogram-rules";
@@ -48,16 +49,27 @@ function userRef(database, uid = "alice") {
   return doc(database, "users", uid);
 }
 
-function validUserProfile(uid = "alice") {
+function usernameRef(database, username) {
+  return doc(database, "usernames", username.toLowerCase());
+}
+
+function validUserProfile(uid = "alice", username = "alice_01") {
   return {
     uid,
-    username: "alice_01",
+    username,
     displayName: "Alice",
     bio: "Hello",
     photoUrl: "https://example.invalid/avatar.png",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
+}
+
+async function createUserWithUsername(database, uid = "alice", username = "alice_01") {
+  const batch = writeBatch(database);
+  batch.set(userRef(database, uid), validUserProfile(uid, username));
+  batch.set(usernameRef(database, username), { uid });
+  await batch.commit();
 }
 
 function validPost(authorId = "alice") {
@@ -360,7 +372,7 @@ test("a user can create a complete profile with validated fields and server time
   const database = testEnvironment.authenticatedContext("alice").firestore();
   const reference = userRef(database);
 
-  await assertSucceeds(setDoc(reference, validUserProfile()));
+  await assertSucceeds(createUserWithUsername(database));
   const profile = await assertSucceeds(getDoc(reference));
   assert.equal(profile.data().uid, "alice");
   assert.equal(profile.data().username, "alice_01");
@@ -385,7 +397,12 @@ test("profile creation rejects another user's path and invalid or unexpected fie
   ];
 
   for (const profile of invalidProfiles) {
-    await assertFails(setDoc(userRef(database), profile));
+    const batch = writeBatch(database);
+    batch.set(userRef(database), profile);
+    if (typeof profile.username === "string" && profile.username.length > 0) {
+      batch.set(usernameRef(database, profile.username), { uid: "alice" });
+    }
+    await assertFails(batch.commit());
   }
 });
 
@@ -394,7 +411,7 @@ test("profile updates preserve ownership and creation time and require a server 
   const bob = testEnvironment.authenticatedContext("bob").firestore();
   const reference = userRef(alice);
 
-  await assertSucceeds(setDoc(reference, validUserProfile()));
+  await assertSucceeds(createUserWithUsername(alice));
   await assertSucceeds(updateDoc(reference, {
     displayName: "Alice Updated",
     updatedAt: serverTimestamp(),
@@ -418,6 +435,57 @@ test("profile updates preserve ownership and creation time and require a server 
     displayName: "Changed by another user",
     updatedAt: serverTimestamp(),
   }));
+});
+
+test("username reservations are case-insensitive and reject a second owner", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+
+  await assertSucceeds(createUserWithUsername(alice, "alice", "Alice_01"));
+
+  const duplicate = writeBatch(bob);
+  duplicate.set(userRef(bob, "bob"), validUserProfile("bob", "alice_01"));
+  duplicate.set(usernameRef(bob, "ALICE_01"), { uid: "bob" });
+  await assertFails(duplicate.commit());
+
+  await assertFails(setDoc(usernameRef(bob, "free_name"), { uid: "bob" }));
+});
+
+test("renaming a username atomically releases the old claim for reuse", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+  const bob = testEnvironment.authenticatedContext("bob").firestore();
+
+  await assertSucceeds(createUserWithUsername(alice, "alice", "alice_01"));
+
+  const rename = writeBatch(alice);
+  rename.update(userRef(alice), {
+    username: "alice_new",
+    updatedAt: serverTimestamp(),
+  });
+  rename.set(usernameRef(alice, "alice_new"), { uid: "alice" });
+  rename.delete(usernameRef(alice, "alice_01"));
+  await assertSucceeds(rename.commit());
+
+  await assertSucceeds(createUserWithUsername(bob, "bob", "alice_01"));
+  const duplicate = writeBatch(bob);
+  duplicate.update(userRef(bob), {
+    username: "alice_new",
+    updatedAt: serverTimestamp(),
+  });
+  duplicate.set(usernameRef(bob, "alice_new"), { uid: "bob" });
+  await assertFails(duplicate.commit());
+});
+
+test("a profile cannot be deleted while leaving its username reserved", async () => {
+  const alice = testEnvironment.authenticatedContext("alice").firestore();
+
+  await assertSucceeds(createUserWithUsername(alice));
+  await assertFails(deleteDoc(userRef(alice)));
+
+  const deletion = writeBatch(alice);
+  deletion.delete(userRef(alice));
+  deletion.delete(usernameRef(alice, "alice_01"));
+  await assertSucceeds(deletion.commit());
 });
 
 test("an owner can create and read a saved-post marker", async () => {

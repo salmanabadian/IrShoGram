@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:material_ui/material_ui.dart';
+import '../repositories/username_claims.dart';
 import 'google_sign_in_screen.dart';
 
 class AuthGate extends StatefulWidget {
@@ -16,18 +17,16 @@ class _AuthGateState extends State<AuthGate> {
   Future<void>? _profileFuture;
 
   Future<void> _ensureProfile(User user) async {
-    final reference = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    final snapshot = await reference.get();
-    if (snapshot.exists) return;
-    await reference.set({
-      'uid': user.uid,
-      'username': 'user_${user.uid.substring(0, 8)}',
-      'displayName': 'کاربر ایرشوگرام',
-      'bio': '',
-      'photoUrl': user.photoURL,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await ensureUserProfileWithUsernameClaim(
+      firestore: FirebaseFirestore.instance,
+      uid: user.uid,
+      initialProfile: {
+        'username': 'user_${user.uid.substring(0, 20)}',
+        'displayName': 'کاربر ایرشوگرام',
+        'bio': '',
+        'photoUrl': user.photoURL,
+      },
+    );
   }
 
   @override

@@ -8,6 +8,7 @@ import '../models/social_content.dart';
 import '../models/social_metadata.dart';
 import '../models/user_profile.dart';
 import 'social_repository.dart';
+import 'username_claims.dart';
 
 /// Firestore and Firebase Storage implementation of the app's backend
 /// contracts. All operations rely on Firebase Security Rules for authorization.
@@ -33,12 +34,24 @@ class FirebaseSocialRepository implements SocialRepository, MediaStorageReposito
 
   @override
   Future<void> createUser(UserProfile profile) async {
-    await _users.doc(profile.uid).set(profile.toMap());
+    await ensureUserProfileWithUsernameClaim(
+      firestore: _db,
+      uid: profile.uid,
+      initialProfile: profile.toMap(),
+    );
   }
 
   @override
   Future<void> updateUser(UserProfile profile) async {
-    await _users.doc(profile.uid).update(profile.toMap());
+    final changes = profile.toMap()
+      ..remove('uid')
+      ..remove('createdAt')
+      ..remove('updatedAt');
+    await updateUserProfileWithUsernameClaim(
+      firestore: _db,
+      uid: profile.uid,
+      changes: changes,
+    );
   }
 
   @override

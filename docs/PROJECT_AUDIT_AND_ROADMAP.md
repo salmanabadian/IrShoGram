@@ -35,7 +35,7 @@ The target is a real multi-user service, not a static UI demo. Features must wor
 - Initialize Firebase before `runApp`, with clear configuration errors rather than silently falling back to demo mode.
 - Add a Google-only authentication/session layer using Firebase Authentication and Google Sign-In.
 - Handle Google OAuth token acquisition, cancellation, provider/configuration errors, sign-out, and auth-state restoration.
-- Add user profile creation after successful first sign-in; enforce unique usernames transactionally.
+- Add user profile creation after successful first sign-in; reserve usernames atomically through a transaction and Firestore Rules (implemented on `firebase-foundation`; existing profiles are backfilled during auth bootstrap).
 - Add Firebase Authentication emulator coverage for auth-state and profile bootstrap; do not add phone/SMS sign-in.
 - Keep Firebase configuration files and signing secrets out of public commits.
 - Document required Firebase Console steps: enable Phone provider, register the exact Android package, add debug/release SHA fingerprints, and verify the authorized domain/app configuration as applicable.

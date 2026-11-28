@@ -21,6 +21,11 @@ service cloud.firestore {
         && value.matches('[a-zA-Z0-9._]{3,30}');
     }
 
+    function hasUsernameClaim(uid, username) {
+      let claimPath = /databases/$(database)/documents/usernames/$(username.lower());
+      return existsAfter(claimPath) && getAfter(claimPath).data.uid == uid;
+    }
+
     function validDisplayName(value) {
       return value is string
         && value.size() > 0
@@ -44,6 +49,25 @@ service cloud.firestore {
         && value.matches('https://[^/]+.*');
     }
 
+    match /usernames/{username} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.keys().hasAll(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && username.matches('[a-z0-9._]{3,30}')
+        && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username is string
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username.lower() == username;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && (
+          !existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          || getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username.lower() != username
+        );
+    }
+
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if isOwner(uid)
@@ -55,6 +79,7 @@ service cloud.firestore {
         ])
         && request.resource.data.uid == uid
         && validUsername(request.resource.data.username)
+        && hasUsernameClaim(uid, request.resource.data.username)
         && validDisplayName(request.resource.data.displayName)
         && validText(request.resource.data.bio, 300)
         && validProfilePhoto(request.resource.data.photoUrl)
@@ -74,12 +99,24 @@ service cloud.firestore {
           'username', 'displayName', 'bio', 'photoUrl', 'updatedAt'
         ])
         && validUsername(request.resource.data.username)
+        && hasUsernameClaim(uid, request.resource.data.username)
+        && (
+          request.resource.data.username == resource.data.username
+          || !existsAfter(/databases/$(database)/documents/usernames/$(resource.data.username.lower()))
+        )
         && validDisplayName(request.resource.data.displayName)
         && validText(request.resource.data.bio, 300)
         && validProfilePhoto(request.resource.data.photoUrl)
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.updatedAt == request.time;
-      allow delete: if isOwner(uid);
+      allow delete: if isOwner(uid)
+        && (
+          !exists(/databases/$(database)/documents/usernames/$(resource.data.username.lower()))
+          || (
+            get(/databases/$(database)/documents/usernames/$(resource.data.username.lower())).data.uid == uid
+            && !existsAfter(/databases/$(database)/documents/usernames/$(resource.data.username.lower()))
+          )
+        );
 
       match /following/{targetUid} {
         allow read: if signedIn();

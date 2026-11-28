@@ -14,6 +14,7 @@ import 'package:video_player/video_player.dart';
 import 'auth/auth_gate.dart';
 import 'features/online_feed.dart';
 import 'features/online_notifications.dart';
+import 'repositories/username_claims.dart';
 import 'services/local_social_store.dart';
 
 const _previewMode = bool.fromEnvironment('IRSHOGRAM_PREVIEW', defaultValue: false);
@@ -351,16 +352,34 @@ class _MainShellState extends State<MainShell> {
             _notice('نام کاربری باید حداقل ۳ حرف و شامل حروف انگلیسی، عدد، نقطه یا زیرخط باشد.');
             return;
           }
-          _profile = {'name': name.text.trim(), 'username': u, 'bio': bio.text.trim(), 'avatar': _profile['avatar'] ?? ''};
           final uid = FirebaseAuth.instance.currentUser!.uid;
-          await FirebaseFirestore.instance.collection('users').doc(uid).update({
-            'username': u,
-            'displayName': name.text.trim(),
-            'bio': bio.text.trim(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-          if (mounted) setState(() {});
-          if (ctx.mounted) Navigator.pop(ctx);
+          try {
+            await updateUserProfileWithUsernameClaim(
+              firestore: FirebaseFirestore.instance,
+              uid: uid,
+              changes: {
+                'username': u,
+                'displayName': name.text.trim(),
+                'bio': bio.text.trim(),
+              },
+            );
+            if (!mounted) return;
+            setState(() {
+              _profile = {
+                'name': name.text.trim(),
+                'username': u,
+                'bio': bio.text.trim(),
+                'avatar': _profile['avatar'] ?? '',
+              };
+            });
+            if (ctx.mounted) Navigator.pop(ctx);
+          } on StateError catch (error) {
+            _notice(error.message == 'USERNAME_TAKEN'
+                ? 'این نام کاربری قبلاً استفاده شده است.'
+                : 'ذخیره پروفایل انجام نشد. دوباره تلاش کنید.');
+          } catch (_) {
+            _notice('ذخیره پروفایل انجام نشد. اتصال اینترنت را بررسی کنید.');
+          }
         }, child: const Text('ذخیره')),
       ],
     ));
