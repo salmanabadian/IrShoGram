@@ -261,8 +261,8 @@ test("following markers require a real target and a server timestamp", async () 
   const bob = testEnvironment.authenticatedContext("bob").firestore();
   const following = doc(alice, "users", "alice", "following", "bob");
 
-  await assertSucceeds(setDoc(userRef(alice), validUserProfile("alice")));
-  await assertSucceeds(setDoc(userRef(bob, "bob"), validUserProfile("bob")));
+  await assertSucceeds(createUserWithUsername(alice, "alice", "alice_01"));
+  await assertSucceeds(createUserWithUsername(bob, "bob", "bob_01"));
 
   await assertFails(setDoc(following, { targetUid: "bob" }));
   await assertFails(setDoc(following, {
@@ -442,6 +442,11 @@ test("username reservations are case-insensitive and reject a second owner", asy
   const bob = testEnvironment.authenticatedContext("bob").firestore();
 
   await assertSucceeds(createUserWithUsername(alice, "alice", "Alice_01"));
+  const charlie = testEnvironment.authenticatedContext("charlie").firestore();
+  await assertFails(setDoc(
+    userRef(charlie, "charlie"),
+    validUserProfile("charlie", "unclaimed_name"),
+  ));
 
   const duplicate = writeBatch(bob);
   duplicate.set(userRef(bob, "bob"), validUserProfile("bob", "alice_01"));
